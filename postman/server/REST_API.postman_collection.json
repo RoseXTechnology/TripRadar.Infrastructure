@@ -1,0 +1,4365 @@
+{
+	"info": {
+		"_postman_id": "0f044964-9b07-4a14-a7bd-0cf79eac223c",
+		"name": "TripRadar REST API Collection",
+		"description": "Comprehensive collection for testing TripRadar REST API endpoints with API key authentication and random IP simulation.\n\n**Authentication Features:**\n- Traditional username/password login with JWT tokens\n- Google OAuth2 authentication with ID token validation\n- Refresh token mechanism for secure session management\n- Server-side Google token validation for enhanced security\n\n**User Management Features:**\n- Email confirmation with secure tokens (24-hour expiry)\n- Password reset flow with email notifications (1-hour token expiry)\n- User status management (enable/disable access)\n- Email is now required for user registration\n- All user data is encrypted in the database\n- Google profile integration (name, email, profile picture)\n- Automatic account linking for existing users with Google authentication\n\n**Payment and Subscription Features:**\n- Support for both monthly (1) and yearly (2) billing periods\n- Create subscription checkout with billing period selection\n- Downgrade subscription with billing period change support\n- billingPeriod parameter: 1 = Monthly, 2 = Yearly\n- Default billing period is Monthly if not specified\n- Comprehensive refund processing with multiple test scenarios\n- Support for full refunds with various reason codes and metadata\n\n**Overage Billing (Pay-As-You-Go) Features:**\n- GET /payments/users/{username}/overage-usage - Retrieve individual user overage usage data\n- GET /payments/overage-users - Get list of all users with overage usage (admin)\n- Real-time database-driven overage token pricing and billing\n- Automatic Stripe payment processing for overage tokens\n- Comprehensive usage tracking and analytics\n\n**Refund Testing Scenarios:**\n- Multiple refund reason codes (1-5) with descriptive metadata\n- Customer-requested, duplicate, fraudulent, subscription-canceled, and service-not-delivered scenarios\n- Comprehensive error testing for invalid reasons, missing fields, and unauthorized access\n- Automatic validation of refund response structure and Stripe integration\n- Support for custom metadata tracking and audit trails\n\n**Pricing Information API:**\n- GET /api/v1.0/payments/prices - Public endpoint to retrieve all available Stripe prices\n- Requires standard authentication (Bearer token)\n- Returns comprehensive price data including recurring details\n- Accessible to authenticated users for subscription planning\n\n**Internal Token Management API:**\n- Secure internal-only endpoints for managing user tokens\n- Requires X-Internal-Auth header with valid internal API key\n- POST /internal/token/deduct - Deduct tokens from user accounts\n- Designed for internal systems, bots, and admin dashboards\n- Returns token usage details including remaining tokens and limits\n\n**Weather API Validation Rules:**\n- For scheduled weather queries, use 'forecastDays' (not 'days') in additionalParameters\n- Units must be lowercase strings: 'metric', 'imperial', or 'kelvin'\n- Forecast days must be between 1 and 5\n- Provide either cityName OR both latitude/longitude coordinates\n\n**Updated Weather Parameters:**\n- additionalParameters.forecastDays: 1-5 (replaces 'days')\n- additionalParameters.units: 'metric'|'imperial'|'kelvin'\n\n**Currency Exchange API Validation Rules:**\n- baseCurrency must be a valid 3-character ISO currency code (e.g., 'USD', 'EUR')\n- targetCurrencies is an array of 3-character ISO currency codes\n- Supports 100+ global currencies through UniRateApi integration\n- Optional additionalParameters for amount and precision settings\n\n**Currency Exchange Column Names:**\n- Supports both user-friendly and internal column names:\n  - 'baseCurrency' or 'base_currency' → baseCurrency field\n  - 'exchangeRates' or 'rates' → exchangeRates array\n  - 'timestamp' or 'last_updated' → timestamp field\n  - 'rate' or 'exchange_rate' → individual exchange rate\n  - 'currency_code' or 'to_currency' → target currency code\n\n**Enum Values Support:**\nThe API supports both numeric and string values for all enum fields. You can use either format:\n\n**Billing Period:**\n- Numeric: 1 (Monthly), 2 (Yearly)\n- String: \"Monthly\", \"Yearly\"\n\n**User Tier Types:**\n- Numeric: 1 (Basic), 2 (Essential), 3 (Advanced)\n- String: \"Basic\", \"Essential\", \"Advanced\"\n\n**Feedback Category Types:**\n- Numeric: 1 (General), 2 (BugReport), 3 (FeatureRequest), 4 (Performance), 5 (UserInterface), 6 (Documentation)\n- String: \"General\", \"BugReport\", \"FeatureRequest\", \"Performance\", \"UserInterface\", \"Documentation\"\n\n**Refund Reasons:**\n- Numeric: 1 (RequestedByCustomer), 2 (Duplicate), 3 (Fraudulent), 4 (SubscriptionCanceled), 5 (ServiceNotDelivered)\n- String: \"RequestedByCustomer\", \"Duplicate\", \"Fraudulent\", \"SubscriptionCanceled\", \"ServiceNotDelivered\"\n\n**Local Places Sort Options:**\n- String: \"Relevance\", \"Rating\", \"Distance\", \"Reviews\", \"PriceHighToLow\", \"PriceLowToHigh\", \"Newest\", \"Oldest\"\n\n**Place Types:**\n- Numeric: 1-96 (e.g., 1=Accounting, 15=Cafe, 75=Restaurant, 90=TouristAttraction)\n- String: \"accounting\", \"airport\", \"amusement_park\", \"cafe\", \"restaurant\", \"tourist_attraction\", etc.\n\n**Sort Order:**\n- String: \"Ascending\", \"Descending\"\n\n**Examples:**\n```json\n// Using numeric values (traditional)\n{\n  \"billingPeriod\": 1,\n  \"targetTierType\": 2,\n  \"feedbackCategoryType\": 3,\n  \"reason\": 1\n}\n\n// Using string values (new feature)\n{\n  \"billingPeriod\": \"Monthly\",\n  \"targetTierType\": \"Essential\",\n  \"feedbackCategoryType\": \"FeatureRequest\",\n  \"reason\": \"RequestedByCustomer\"\n}\n```",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "31378021"
+	},
+	"item": [
+    {
+      "name": "Preferences",
+      "description": "Updated preferences API endpoints matching actual implementation",
+      "item": [
+        {
+          "name": "Preferences Controller",
+          "description": "Endpoints from PreferencesController (/api/v{version}/preferences)",
+          "item": [
+            {
+              "name": "Get All Preference Types",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{authToken}}" },
+                  { "key": "X-API-Key", "value": "{{apiKey}}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1.0/preferences/types",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "v1.0", "preferences", "types"]
+                },
+                "description": "Get all available preference types across all services"
+              },
+              "response": []
+            },
+            {
+              "name": "Get Preference Types by Service",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{authToken}}" },
+                  { "key": "X-API-Key", "value": "{{apiKey}}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1.0/preferences/types/Flight",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "v1.0", "preferences", "types", "Flight"]
+                },
+                "description": "Get preference types for a specific service (Flight, Weather, Hotel, LocalPlaces, PublicTransport, CurrencyExchange, etc.)"
+              },
+              "response": []
+            },
+            {
+              "name": "Get User Preferences (Preferences Controller)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{authToken}}" },
+                  { "key": "X-API-Key", "value": "{{apiKey}}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1.0/preferences/user/{{testUsername}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "v1.0", "preferences", "user", "{{testUsername}}"]
+                },
+                "description": "Get user preferences from PreferencesController"
+              },
+              "response": []
+            },
+            {
+              "name": "Update User Preferences (Preferences Controller)",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{authToken}}" },
+                  { "key": "X-API-Key", "value": "{{apiKey}}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"preferences\": {\n    \"Flight\": {\n      \"adults\": 2,\n      \"children\": 1,\n      \"infantsInSeat\": 0,\n      \"infantsOnLap\": 0,\n      \"maxPrice\": 500,\n      \"currency\": \"USD\",\n      \"travelClass\": \"ECONOMY\",\n      \"sortBy\": \"price\"\n    },\n    \"Hotel\": {\n      \"adults\": 2,\n      \"children\": 0,\n      \"minPrice\": 50,\n      \"maxPrice\": 200,\n      \"currency\": \"USD\",\n      \"sortBy\": \"price\",\n      \"freeCancellation\": true,\n      \"rating\": \"4\"\n    },\n    \"Weather\": {\n      \"units\": \"metric\",\n      \"includeForecast\": true,\n      \"forecastDays\": 3\n    },\n    \"Event\": {\n      \"currency\": \"USD\",\n      \"language\": \"en\"\n    },\n    \"LocalPlaces\": {\n      \"currency\": \"USD\",\n      \"language\": \"en\"\n    },\n    \"PublicTransport\": {\n      \"radius\": 500,\n      \"limit\": 20\n    },\n    \"CurrencyExchange\": {\n      \"baseCurrency\": \"USD\"\n    },\n    \"ChargingStation\": {\n      \"distance\": 10.5,\n      \"distanceUnit\": \"km\",\n      \"maxResults\": 50,\n      \"openData\": true\n    },\n    \"Holiday\": {\n      \"language\": \"en\",\n      \"type\": \"national\"\n    },\n    \"Maps\": {\n      \"currency\": \"USD\",\n      \"language\": \"en\"\n    },\n    \"PlaceReview\": {\n      \"currency\": \"USD\",\n      \"language\": \"en\",\n      \"sortBy\": \"rating\"\n    },\n    \"PointsOfInterest\": {\n      \"radius\": 1500,\n      \"minRating\": 2,\n      \"limit\": 50,\n      \"language\": \"en\"\n    }\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1.0/preferences/user/{{testUsername}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "v1.0", "preferences", "user", "{{testUsername}}"]
+                },
+                "description": "Update user preferences using PreferencesController. Top-level keys are ServiceType names (e.g., Flight, Weather, LocalPlaces, PublicTransport); values are nested preference objects that match the UpdateUserPreferencesRequest schema. Property names inside preference objects use camelCase. Note: Enums accept string values (e.g., Weather.units: 'metric'|'imperial'|'kelvin'). Holiday.type must be one or more of: 'national', 'local', 'religious', 'observance' (comma-separated allowed)."
+              },
+              "response": []
+            }
+          ]
+        }
+      ]
+    },
+		{
+			"name": "Authentication",
+			"item": [
+				{
+					"name": "Login - Valid Credentials",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response has token and refreshToken\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('token');",
+									"    pm.expect(jsonData).to.have.property('refreshToken');",
+									"    ",
+									"    // Store tokens for future requests",
+									"    pm.environment.set(\"authToken\", jsonData.token);",
+									"    pm.environment.set(\"refreshToken\", jsonData.refreshToken);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-API-Key",
+								"value": "{{apiKey}}"
+							},
+							{
+								"key": "X-ClientId",
+								"value": "{{randomIP}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"john_doe\",\n  \"password\": \"SecurePassword123!\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1.0/tokens/login",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1.0",
+								"tokens",
+								"login"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Refresh Token - Valid",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response has new tokens\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('token');",
+									"    pm.expect(jsonData).to.have.property('refreshToken');",
+									"    ",
+									"    // Update stored tokens",
+									"    pm.environment.set(\"authToken\", jsonData.token);",
+									"    pm.environment.set(\"refreshToken\", jsonData.refreshToken);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-API-Key",
+								"value": "{{apiKey}}"
+							},
+							{
+								"key": "X-ClientId",
+								"value": "{{randomIP}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"john_doe\",\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1.0/tokens/refresh",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1.0",
+								"tokens",
+								"refresh"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Google Login - Valid ID Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response has token and refreshToken\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('token');",
+									"    pm.expect(jsonData).to.have.property('refreshToken');",
+									"    ",
+									"    // Store tokens for future requests",
+									"    pm.environment.set(\"authToken\", jsonData.token);",
+									"    pm.environment.set(\"refreshToken\", jsonData.refreshToken);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-API-Key",
+								"value": "{{apiKey}}"
+							},
+							{
+								"key": "X-ClientId",
+								"value": "{{randomIP}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"id_token\": \"{{googleIdToken}}\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1.0/tokens/google-login",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1.0",
+								"tokens",
+								"google-login"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Google Login - Invalid Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400 Bad Request\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test(\"Response contains error message\", function () {",
+									"    var responseText = pm.response.text();",
+									"    pm.expect(responseText).to.include('Invalid Google token') || pm.expect(responseText).to.include('token');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-API-Key",
+								"value": "{{apiKey}}"
+							},
+							{
+								"key": "X-ClientId",
+								"value": "{{randomIP}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"id_token\": \"invalid_google_token_123\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1.0/tokens/google-login",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1.0",
+								"tokens",
+								"google-login"
+							]
+						}
+					},
+					"response": []
+            },
+            {
+                "name": "Update Metered Events - Enable",
+                "event": [
+                    {
+                        "listen": "test",
+                        "script": {
+                            "exec": [
+                                "pm.test(\"Status code is 200\", function () {",
+                                "    pm.response.to.have.status(200);",
+                                "});",
+                                "",
+                                "pm.test(\"Response contains enabled flag\", function () {",
+                                "    var jsonData = pm.response.json();",
+                                "    pm.expect(jsonData).to.have.property('enabled');",
+                                "});"
+                            ],
+                            "type": "text/javascript"
+                        }
+                    }
+                ],
+                "request": {
+                    "method": "PATCH",
+                    "header": [
+                        {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        },
+                        {
+                            "key": "Authorization",
+                            "value": "Bearer {{authToken}}"
+                        },
+                        {
+                            "key": "X-API-Key",
+                            "value": "{{apiKey}}"
+                        },
+                        {
+                            "key": "X-ClientId",
+                            "value": "{{randomIP}}"
+                        }
+                    ],
+                    "body": {
+                        "mode": "raw",
+                        "raw": "{\n  \"enabled\": true\n}"
+                    },
+                    "url": {
+                        "raw": "{{baseUrl}}/api/v1.0/payments/users/{{testUsername}}/metered-events",
+                        "host": [
+                            "{{baseUrl}}"
+                        ],
+                        "path": [
+                            "api",
+                            "v1.0",
+                            "payments",
+                            "users",
+                            "{{testUsername}}",
+                            "metered-events"
+                        ]
+                    }
+                },
+                "response": []
+            }
+			]
+		},
+		{
+			"name": "User Management",
+			"item": [
+				{
+					"name": "Create User - Valid Data",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 201 Created\", function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test(\"User created successfully\", function () {",
+									"    pm.environment.set(\"testUsername\", \"john_doe\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-API-Key",
+								"value": "{{apiKey}}"
+							},
+							{
+								"key": "X-ClientId",
+								"value": "{{randomIP}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"john_doe\",\n  \"password\": \"SecurePassword123!\",\n  \"email\": \"john.doe@example.com\",\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\",\n  \"phoneNumber\": \"+1234567890\",\n  \"hasDataStorageConsent\": true\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/users",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"users"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get User Tier Usage - Valid",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response contains tier usage data\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('currentUsage');",
+									"    pm.expect(jsonData).to.have.property('tierLimit');",
+									"    pm.expect(jsonData).to.have.property('tierName');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-API-Key",
+								"value": "{{apiKey}}"
+							},
+							{
+								"key": "X-ClientId",
+								"value": "{{randomIP}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/users/{{testUsername}}/tier-usage",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"users",
+								"{{testUsername}}",
+								"tier-usage"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create User - No Consent",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400 Bad Request\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test(\"Response contains consent error\", function () {",
+									"    var responseText = pm.response.text();",
+									"    pm.expect(responseText).to.include('consent');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-API-Key",
+								"value": "{{apiKey}}"
+							},
+							{
+								"key": "X-ClientId",
+								"value": "{{randomIP}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"no_consent_user\",\n  \"password\": \"SecurePassword123!\",\n  \"email\": \"no.consent@example.com\",\n  \"firstName\": \"No\",\n  \"lastName\": \"Consent\",\n  \"phoneNumber\": \"+1234567891\",\n  \"hasDataStorageConsent\": false\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/users",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"users"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create User - Missing Consent Field",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400 Bad Request\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test(\"Response contains validation error\", function () {",
+									"    var responseText = pm.response.text();",
+									"    pm.expect(responseText).to.include('consent');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-API-Key",
+								"value": "{{apiKey}}"
+							},
+							{
+								"key": "X-ClientId",
+								"value": "{{randomIP}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"missing_consent_user\",\n  \"password\": \"SecurePassword123!\",\n  \"email\": \"missing.consent@example.com\",\n  \"firstName\": \"Missing\",\n  \"lastName\": \"Consent\",\n  \"phoneNumber\": \"+1234567892\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/users",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"users"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Confirm Email - Valid Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response contains success message\", function () {",
+									"    var responseText = pm.response.text();",
+									"    pm.expect(responseText).to.include('confirmed');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{apiKey}}"
+							},
+							{
+								"key": "X-ClientId",
+								"value": "{{randomIP}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/users/confirm-email?username={{testUsername}}&token={{emailConfirmationToken}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"users",
+								"confirm-email"
+							],
+							"query": [
+								{
+									"key": "username",
+									"value": "{{testUsername}}"
+								},
+								{
+									"key": "token",
+									"value": "{{emailConfirmationToken}}"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Confirm Email - Invalid Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400 Bad Request\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test(\"Response contains error message\", function () {",
+									"    var responseText = pm.response.text();",
+									"    pm.expect(responseText).to.include('invalid') || pm.expect(responseText).to.include('expired');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{apiKey}}"
+							},
+							{
+								"key": "X-ClientId",
+								"value": "{{randomIP}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/users/confirm-email?username={{testUsername}}&token=invalid_token_123",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"users",
+								"confirm-email"
+							],
+							"query": [
+								{
+									"key": "username",
+									"value": "{{testUsername}}"
+								},
+								{
+									"key": "token",
+									"value": "invalid_token_123"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Forgot Password - Valid Email",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response contains success message\", function () {",
+									"    var responseText = pm.response.text();",
+									"    pm.expect(responseText).to.include('sent') || pm.expect(responseText).to.include('email');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-API-Key",
+								"value": "{{apiKey}}"
+							},
+							{
+								"key": "X-ClientId",
+								"value": "{{randomIP}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"john.doe@example.com\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/users/forgot-password",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"users",
+								"forgot-password"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Forgot Password - Invalid Email",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400 Bad Request\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test(\"Response contains validation error\", function () {",
+									"    var responseText = pm.response.text();",
+									"    pm.expect(responseText).to.include('email') || pm.expect(responseText).to.include('valid');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-API-Key",
+								"value": "{{apiKey}}"
+							},
+							{
+								"key": "X-ClientId",
+								"value": "{{randomIP}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"invalid-email-format\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/users/forgot-password",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"users",
+								"forgot-password"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Reset Password - Valid Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response contains success message\", function () {",
+									"    var responseText = pm.response.text();",
+									"    pm.expect(responseText).to.include('reset') || pm.expect(responseText).to.include('updated');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-API-Key",
+								"value": "{{apiKey}}"
+							},
+							{
+								"key": "X-ClientId",
+								"value": "{{randomIP}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"{{testUsername}}\",\n  \"token\": \"{{passwordResetToken}}\",\n  \"newPassword\": \"NewSecurePassword123!\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/users/reset-password",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"users",
+								"reset-password"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Reset Password - Invalid Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400 Bad Request\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test(\"Response contains error message\", function () {",
+									"    var responseText = pm.response.text();",
+									"    pm.expect(responseText).to.include('invalid') || pm.expect(responseText).to.include('expired');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-API-Key",
+								"value": "{{apiKey}}"
+							},
+							{
+								"key": "X-ClientId",
+								"value": "{{randomIP}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"{{testUsername}}\",\n  \"token\": \"invalid_reset_token_123\",\n  \"newPassword\": \"NewSecurePassword123!\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/users/reset-password",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"users",
+								"reset-password"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Reset Password - Weak Password",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400 Bad Request\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test(\"Response contains password validation error\", function () {",
+									"    var responseText = pm.response.text();",
+									"    pm.expect(responseText).to.include('password') || pm.expect(responseText).to.include('requirements');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-API-Key",
+								"value": "{{apiKey}}"
+							},
+							{
+								"key": "X-ClientId",
+								"value": "{{randomIP}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"{{testUsername}}\",\n  \"token\": \"{{passwordResetToken}}\",\n  \"newPassword\": \"123\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/users/reset-password",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"users",
+								"reset-password"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Toggle User Status - Activate",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response contains success message\", function () {",
+									"    var responseText = pm.response.text();",
+									"    pm.expect(responseText).to.include('status') || pm.expect(responseText).to.include('updated');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-API-Key",
+								"value": "{{apiKey}}"
+							},
+							{
+								"key": "X-ClientId",
+								"value": "{{randomIP}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/users/{{testUsername}}/toggle-status",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"users",
+								"{{testUsername}}",
+								"toggle-status"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Toggle User Status - Unauthorized",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 401 Unauthorized\", function () {",
+									"    pm.response.to.have.status(401);",
+									"});",
+									"",
+									"pm.test(\"Response contains authorization error\", function () {",
+									"    var responseText = pm.response.text();",
+									"    pm.expect(responseText).to.include('Unauthorized') || pm.expect(responseText).to.include('token');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "X-API-Key",
+								"value": "{{apiKey}}"
+							},
+							{
+								"key": "X-ClientId",
+								"value": "{{randomIP}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/users/{{testUsername}}/toggle-status",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"users",
+								"{{testUsername}}",
+								"toggle-status"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Feedback Management",
+			"item": [
+				{
+					"name": "Get Feedback Categories - Valid",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response contains feedback categories\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.be.an('array');",
+									"    if (jsonData.length > 0) {",
+									"        pm.expect(jsonData[0]).to.have.property('id');",
+									"        pm.expect(jsonData[0]).to.have.property('name');",
+									"        // Store first category ID for feedback creation",
+									"        pm.environment.set(\"feedbackCategoryId\", jsonData[0].id);",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-API-Key",
+								"value": "{{apiKey}}"
+							},
+							{
+								"key": "X-ClientId",
+								"value": "{{randomIP}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/feedbacks/categories",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"feedbacks",
+								"categories"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Feedbacks - Valid",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response contains all feedbacks\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.be.an('array');",
+									"    if (jsonData.length > 0) {",
+									"        pm.expect(jsonData[0]).to.have.property('id');",
+									"        pm.expect(jsonData[0]).to.have.property('username');",
+									"        pm.expect(jsonData[0]).to.have.property('title');",
+									"        pm.expect(jsonData[0]).to.have.property('content');",
+									"        pm.expect(jsonData[0]).to.have.property('rating');",
+									"        pm.expect(jsonData[0]).to.have.property('categoryId');",
+									"        pm.expect(jsonData[0]).to.have.property('categoryName');",
+									"        pm.expect(jsonData[0]).to.have.property('createdOn');",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-API-Key",
+								"value": "{{apiKey}}"
+							},
+							{
+								"key": "X-ClientId",
+								"value": "{{randomIP}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/feedbacks",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"feedbacks"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Feedback - Valid Data",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response contains feedback ID\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.be.a('number');",
+									"    pm.environment.set(\"feedbackId\", jsonData);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-API-Key",
+								"value": "{{apiKey}}"
+							},
+							{
+								"key": "X-ClientId",
+								"value": "{{randomIP}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Great API Experience\",\n  \"content\": \"The TripRadar API is really easy to use and well-documented. The response times are excellent and the data quality is very good. Would definitely recommend to other developers.\",\n  \"rating\": 5,\n  \"feedbackCategoryType\": \"General\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/feedbacks/users/{{testUsername}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"feedbacks",
+								"users",
+								"{{testUsername}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Feedback - Bug Report",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response contains feedback ID\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.be.a('number');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-API-Key",
+								"value": "{{apiKey}}"
+							},
+							{
+								"key": "X-ClientId",
+								"value": "{{randomIP}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Flight Search Returns Stale Data\",\n  \"content\": \"When searching for flights from JFK to LAX, the API sometimes returns flights from yesterday instead of the requested date. This happens about 20% of the time during peak hours.\",\n  \"rating\": 2,\n  \"feedbackCategoryType\": \"BugReport\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/feedbacks/users/{{testUsername}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"feedbacks",
+								"users",
+								"{{testUsername}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Feedback - Feature Request",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response contains feedback ID\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.be.a('number');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-API-Key",
+								"value": "{{apiKey}}"
+							},
+							{
+								"key": "X-ClientId",
+								"value": "{{randomIP}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Add Real-time Price Alerts\",\n  \"content\": \"It would be great to have a feature that sends webhooks or notifications when flight/hotel prices drop below a certain threshold. This would make the scheduled queries even more valuable.\",\n  \"rating\": 4,\n  \"feedbackCategoryType\": \"FeatureRequest\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/feedbacks/users/{{testUsername}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"feedbacks",
+								"users",
+								"{{testUsername}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get User Feedback - Valid",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response contains user feedback\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.be.an('array');",
+									"    if (jsonData.length > 0) {",
+									"        pm.expect(jsonData[0]).to.have.property('id');",
+									"        pm.expect(jsonData[0]).to.have.property('title');",
+									"        pm.expect(jsonData[0]).to.have.property('content');",
+									"        pm.expect(jsonData[0]).to.have.property('rating');",
+									"        pm.expect(jsonData[0]).to.have.property('categoryId');",
+									"        pm.expect(jsonData[0]).to.have.property('categoryName');",
+									"        pm.expect(jsonData[0]).to.have.property('createdOn');",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-API-Key",
+								"value": "{{apiKey}}"
+							},
+							{
+								"key": "X-ClientId",
+								"value": "{{randomIP}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/feedbacks/users/{{testUsername}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"feedbacks",
+								"users",
+								"{{testUsername}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Feedback - Invalid Data (Missing Title)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400 Bad Request\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test(\"Response contains validation error\", function () {",
+									"    var responseText = pm.response.text();",
+									"    pm.expect(responseText).to.include('title');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-API-Key",
+								"value": "{{apiKey}}"
+							},
+							{
+								"key": "X-ClientId",
+								"value": "{{randomIP}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"content\": \"This feedback is missing a title\",\n  \"rating\": 3,\n  \"feedbackCategoryType\": 1\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/feedbacks/users/{{testUsername}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"feedbacks",
+								"users",
+								"{{testUsername}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Feedback - Invalid Rating",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400 Bad Request\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test(\"Response contains validation error\", function () {",
+									"    var responseText = pm.response.text();",
+									"    pm.expect(responseText).to.include('rating');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-API-Key",
+								"value": "{{apiKey}}"
+							},
+							{
+								"key": "X-ClientId",
+								"value": "{{randomIP}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Invalid Rating Test\",\n  \"content\": \"This feedback has an invalid rating\",\n  \"rating\": 10,\n  \"feedbackCategoryType\": 1\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/feedbacks/users/{{testUsername}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"feedbacks",
+								"users",
+								"{{testUsername}}"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Payment Management",
+			"item": [
+				{
+					"name": "Create Subscription Checkout - Premium Tier (Monthly)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response contains checkout session details\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('sessionId');",
+									"    pm.expect(jsonData).to.have.property('checkoutUrl');",
+									"    pm.environment.set(\"sessionId\", jsonData.sessionId);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-API-Key",
+								"value": "{{apiKey}}"
+							},
+							{
+								"key": "X-ClientId",
+								"value": "{{randomIP}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"targetTierType\": \"Essential\",\n  \"billingPeriod\": \"Monthly\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1.0/payments/users/{{testUsername}}/create-subscription-checkout",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1.0",
+								"payments",
+								"users",
+								"{{testUsername}}",
+								"create-subscription-checkout"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Subscription Checkout - Premium Tier (Yearly)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response contains checkout session details\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('sessionId');",
+									"    pm.expect(jsonData).to.have.property('checkoutUrl');",
+									"    pm.environment.set(\"yearlySessionId\", jsonData.sessionId);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-API-Key",
+								"value": "{{apiKey}}"
+							},
+							{
+								"key": "X-ClientId",
+								"value": "{{randomIP}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"targetTierType\": \"Essential\",\n  \"billingPeriod\": \"Yearly\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1.0/payments/users/{{testUsername}}/create-subscription-checkout",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1.0",
+								"payments",
+								"users",
+								"{{testUsername}}",
+								"create-subscription-checkout"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Refund - Customer Requested",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response contains refund details\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('refundId');",
+									"    pm.expect(jsonData).to.have.property('paymentIntentId');",
+									"    pm.expect(jsonData).to.have.property('amount');",
+									"    pm.expect(jsonData).to.have.property('currency');",
+									"    pm.expect(jsonData).to.have.property('status');",
+									"    pm.expect(jsonData).to.have.property('reason');",
+									"    pm.expect(jsonData).to.have.property('created');",
+									"    pm.expect(jsonData.amount).to.be.a('number');",
+									"    pm.expect(jsonData.status).to.be.oneOf(['pending', 'succeeded', 'failed', 'canceled']);",
+									"    pm.expect(jsonData.reason).to.equal('RequestedByCustomer');",
+									"    pm.expect(jsonData.currency).to.be.a('string');",
+									"    pm.environment.set('refundId', jsonData.refundId);",
+									"    pm.environment.set('refundAmount', jsonData.amount);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-API-Key",
+								"value": "{{apiKey}}"
+							},
+							{
+								"key": "X-ClientId",
+								"value": "{{randomIP}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"reason\": \"RequestedByCustomer\",\n  \"metadata\": {\n    \"customer_request\": \"Service not meeting expectations\",\n    \"support_ticket\": \"TICK-2025-001\",\n    \"agent_id\": \"agent_123\",\n    \"satisfaction_score\": \"2\",\n    \"refund_category\": \"customer_satisfaction\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1.0/payments/users/{{testUsername}}/refund",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1.0",
+								"payments",
+								"users",
+								"{{testUsername}}",
+								"refund"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Refund - Duplicate Payment",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response contains duplicate refund details\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('refundId');",
+									"    pm.expect(jsonData).to.have.property('reason');",
+									"    pm.expect(jsonData.reason).to.equal('Duplicate');",
+									"    pm.expect(jsonData).to.have.property('metadata');",
+									"    if (jsonData.metadata) {",
+									"        pm.expect(jsonData.metadata).to.have.property('duplicate_payment_id');",
+									"        pm.expect(jsonData.metadata).to.have.property('detection_method');",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-API-Key",
+								"value": "{{apiKey}}"
+							},
+							{
+								"key": "X-ClientId",
+								"value": "{{randomIP}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"reason\": \"Duplicate\",\n  \"metadata\": {\n    \"duplicate_payment_id\": \"pi_duplicate_12345\",\n    \"detection_method\": \"automated_system\",\n    \"original_payment_date\": \"2025-01-15T10:30:00Z\",\n    \"duplicate_detection_score\": \"0.98\",\n    \"system_alert_id\": \"ALERT-DUP-2025-001\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1.0/payments/users/{{testUsername}}/refund",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1.0",
+								"payments",
+								"users",
+								"{{testUsername}}",
+								"refund"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Refund - Fraudulent Activity",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response contains fraud refund details\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('refundId');",
+									"    pm.expect(jsonData).to.have.property('reason');",
+									"    pm.expect(jsonData.reason).to.equal('Fraudulent');",
+									"    pm.expect(jsonData).to.have.property('metadata');",
+									"    if (jsonData.metadata) {",
+									"        pm.expect(jsonData.metadata).to.have.property('fraud_detection_score');",
+									"        pm.expect(jsonData.metadata).to.have.property('investigation_id');",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-API-Key",
+								"value": "{{apiKey}}"
+							},
+							{
+								"key": "X-ClientId",
+								"value": "{{randomIP}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"reason\": \"Fraudulent\",\n  \"metadata\": {\n    \"fraud_detection_score\": \"0.95\",\n    \"investigation_id\": \"FRAUD-2025-007\",\n    \"security_team_approval\": \"approved_by_security\",\n    \"risk_indicators\": \"suspicious_location,unusual_amount,velocity_check_failed\",\n    \"chargeback_risk\": \"high\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1.0/payments/users/{{testUsername}}/refund",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1.0",
+								"payments",
+								"users",
+								"{{testUsername}}",
+								"refund"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Refund - Subscription Canceled",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response contains subscription cancellation refund details\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('refundId');",
+									"    pm.expect(jsonData).to.have.property('reason');",
+									"    pm.expect(jsonData.reason).to.equal('SubscriptionCanceled');",
+									"    pm.expect(jsonData).to.have.property('metadata');",
+									"    if (jsonData.metadata) {",
+									"        pm.expect(jsonData.metadata).to.have.property('cancellation_date');",
+									"        pm.expect(jsonData.metadata).to.have.property('cancellation_reason');",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-API-Key",
+								"value": "{{apiKey}}"
+							},
+							{
+								"key": "X-ClientId",
+								"value": "{{randomIP}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"reason\": 4,\n  \"metadata\": {\n    \"cancellation_date\": \"2025-01-15T14:22:00Z\",\n    \"cancellation_reason\": \"user_requested\",\n    \"prorated_amount\": \"true\",\n    \"billing_cycle_remaining\": \"18_days\",\n    \"subscription_tier\": \"premium\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1.0/payments/users/{{testUsername}}/refund",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1.0",
+								"payments",
+								"users",
+								"{{testUsername}}",
+								"refund"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Refund - Service Not Delivered",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response contains service not delivered refund details\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('refundId');",
+									"    pm.expect(jsonData).to.have.property('reason');",
+									"    pm.expect(jsonData.reason).to.equal('ServiceNotDelivered');",
+									"    pm.expect(jsonData).to.have.property('metadata');",
+									"    if (jsonData.metadata) {",
+									"        pm.expect(jsonData.metadata).to.have.property('service_outage_duration');",
+									"        pm.expect(jsonData.metadata).to.have.property('affected_endpoints');",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-API-Key",
+								"value": "{{apiKey}}"
+							},
+							{
+								"key": "X-ClientId",
+								"value": "{{randomIP}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"reason\": 5,\n  \"metadata\": {\n    \"service_outage_duration\": \"2_hours\",\n    \"affected_endpoints\": \"flights,hotels,weather\",\n    \"compensation_policy\": \"full_refund\",\n    \"incident_id\": \"INC-2025-005\",\n    \"sla_breach\": \"true\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1.0/payments/users/{{testUsername}}/refund",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1.0",
+								"payments",
+								"users",
+								"{{testUsername}}",
+								"refund"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Refund - Invalid Reason (Error Test)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400 Bad Request\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test(\"Response contains validation error for invalid reason\", function () {",
+									"    var responseText = pm.response.text();",
+									"    pm.expect(responseText).to.include('reason') || pm.expect(responseText).to.include('invalid') || pm.expect(responseText).to.include('validation');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-API-Key",
+								"value": "{{apiKey}}"
+							},
+							{
+								"key": "X-ClientId",
+								"value": "{{randomIP}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"reason\": 99,\n  \"metadata\": {\n    \"test_scenario\": \"invalid_reason_code\",\n    \"expected_result\": \"400_bad_request\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1.0/payments/users/{{testUsername}}/refund",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1.0",
+								"payments",
+								"users",
+								"{{testUsername}}",
+								"refund"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Refund - Missing Reason (Error Test)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400 Bad Request\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test(\"Response contains validation error for missing reason\", function () {",
+									"    var responseText = pm.response.text();",
+									"    pm.expect(responseText).to.include('reason') || pm.expect(responseText).to.include('required') || pm.expect(responseText).to.include('validation');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-API-Key",
+								"value": "{{apiKey}}"
+							},
+							{
+								"key": "X-ClientId",
+								"value": "{{randomIP}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"metadata\": {\n    \"test_scenario\": \"missing_reason_field\",\n    \"expected_result\": \"400_bad_request\",\n    \"validation_error\": \"reason_is_required\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1.0/payments/users/{{testUsername}}/refund",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1.0",
+								"payments",
+								"users",
+								"{{testUsername}}",
+								"refund"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Refund - Unauthorized Access (Error Test)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 401 Unauthorized\", function () {",
+									"    pm.response.to.have.status(401);",
+									"});",
+									"",
+									"pm.test(\"Response contains authorization error\", function () {",
+									"    var responseText = pm.response.text();",
+									"    pm.expect(responseText).to.include('Unauthorized') || pm.expect(responseText).to.include('token') || pm.expect(responseText).to.include('authentication');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-API-Key",
+								"value": "{{apiKey}}"
+							},
+							{
+								"key": "X-ClientId",
+								"value": "{{randomIP}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"reason\": 1,\n  \"metadata\": {\n    \"test_scenario\": \"unauthorized_access\",\n    \"expected_result\": \"401_unauthorized\",\n    \"missing_header\": \"authorization_bearer_token\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1.0/payments/users/{{testUsername}}/refund",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1.0",
+								"payments",
+								"users",
+								"{{testUsername}}",
+								"refund"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Refund - Non-existent User (Error Test)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 404 Not Found\", function () {",
+									"    pm.response.to.have.status(404);",
+									"});",
+									"",
+									"pm.test(\"Response contains user not found error\", function () {",
+									"    var responseText = pm.response.text();",
+									"    pm.expect(responseText).to.include('user') || pm.expect(responseText).to.include('not found') || pm.expect(responseText).to.include('UserNotFound');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-API-Key",
+								"value": "{{apiKey}}"
+							},
+							{
+								"key": "X-ClientId",
+								"value": "{{randomIP}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"reason\": 1,\n  \"metadata\": {\n    \"test_scenario\": \"nonexistent_user\",\n    \"expected_result\": \"404_not_found\",\n    \"test_username\": \"user_does_not_exist_12345\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1.0/payments/users/user_does_not_exist_12345/refund",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1.0",
+								"payments",
+								"users",
+								"user_does_not_exist_12345",
+								"refund"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Refund - No Active Subscription (Error Test)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400 Bad Request\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test(\"Response contains payment not found error\", function () {",
+									"    var responseText = pm.response.text();",
+									"    pm.expect(responseText).to.include('payment') || pm.expect(responseText).to.include('subscription') || pm.expect(responseText).to.include('PaymentNotFound');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-API-Key",
+								"value": "{{apiKey}}"
+							},
+							{
+								"key": "X-ClientId",
+								"value": "{{randomIP}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"reason\": 1,\n  \"metadata\": {\n    \"test_scenario\": \"no_active_subscription\",\n    \"expected_result\": \"400_payment_not_found\",\n    \"user_tier\": \"basic\",\n    \"subscription_status\": \"none\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1.0/payments/users/basic_user_no_subscription/refund",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1.0",
+								"payments",
+								"users",
+								"basic_user_no_subscription",
+								"refund"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Refund - Historical Token Usage Exceeds Basic Tier Limit (Anti-Fraud)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400 Bad Request\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test(\"Response contains refund not allowed error\", function () {",
+									"    var responseText = pm.response.text();",
+									"    pm.expect(responseText).to.include('REFUND_NOT_ALLOWED') || pm.expect(responseText).to.include('exceeded the Basic tier limit') || pm.expect(responseText).to.include('subscription period');",
+									"});",
+									"",
+									"pm.test(\"Response contains anti-fraud protection explanation\", function () {",
+									"    var responseText = pm.response.text();",
+									"    pm.expect(responseText).to.include('5 tokens per day') || pm.expect(responseText).to.include('already consumed more tokens') || pm.expect(responseText).to.include('Basic tier allows');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-API-Key",
+								"value": "{{apiKey}}"
+							},
+							{
+								"key": "X-ClientId",
+								"value": "{{randomIP}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"reason\": 1,\n  \"metadata\": {\n    \"test_scenario\": \"historical_token_usage_fraud_prevention\",\n    \"expected_result\": \"400_refund_not_allowed\",\n    \"fraud_type\": \"user_consumed_10_tokens_yesterday_requesting_refund_today\",\n    \"basic_tier_limit\": \"5\",\n    \"anti_fraud_note\": \"System checks ENTIRE account history, not just today's usage\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1.0/payments/users/fraud_attempt_user/refund",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1.0",
+								"payments",
+								"users",
+								"fraud_attempt_user",
+								"refund"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Cancel Subscription - Valid",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response contains success message\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('Message');",
+									"    pm.expect(jsonData.Message).to.include('canceled successfully');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-API-Key",
+								"value": "{{apiKey}}"
+							},
+							{
+								"key": "X-ClientId",
+								"value": "{{randomIP}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1.0/payments/users/{{testUsername}}/cancel-subscription",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1.0",
+								"payments",
+								"users",
+								"{{testUsername}}",
+								"cancel-subscription"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Downgrade Subscription - Valid (Monthly)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response contains success message\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('Message');",
+									"    pm.expect(jsonData.Message).to.include('downgraded successfully');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-API-Key",
+								"value": "{{apiKey}}"
+							},
+							{
+								"key": "X-ClientId",
+								"value": "{{randomIP}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"targetTierType\": \"Basic\",\n  \"billingPeriod\": \"Monthly\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1.0/payments/users/{{testUsername}}/downgrade-subscription",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1.0",
+								"payments",
+								"users",
+								"{{testUsername}}",
+								"downgrade-subscription"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Downgrade Subscription - Valid (Yearly)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response contains success message\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('Message');",
+									"    pm.expect(jsonData.Message).to.include('downgraded successfully');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-API-Key",
+								"value": "{{apiKey}}"
+							},
+							{
+								"key": "X-ClientId",
+								"value": "{{randomIP}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"targetTierType\": \"Basic\",\n  \"billingPeriod\": \"Yearly\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1.0/payments/users/{{testUsername}}/downgrade-subscription",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1.0",
+								"payments",
+								"users",
+								"{{testUsername}}",
+								"downgrade-subscription"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Prices - Valid",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response contains prices data\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('prices');",
+									"    pm.expect(jsonData.prices).to.be.an('array');",
+									"    ",
+									"    if (jsonData.prices.length > 0) {",
+									"        var price = jsonData.prices[0];",
+									"        pm.expect(price).to.have.property('id');",
+									"        pm.expect(price).to.have.property('productId');",
+									"        pm.expect(price).to.have.property('unitAmount');",
+									"        pm.expect(price).to.have.property('currency');",
+									"        pm.expect(price).to.have.property('active');",
+									"        pm.expect(price).to.have.property('type');",
+									"        pm.expect(price).to.have.property('created');",
+									"        ",
+									"        if (price.recurring) {",
+									"            pm.expect(price.recurring).to.have.property('interval');",
+									"            pm.expect(price.recurring).to.have.property('intervalCount');",
+									"        }",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-API-Key",
+								"value": "{{apiKey}}"
+							},
+							{
+								"key": "X-ClientId",
+								"value": "{{randomIP}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1.0/payments/prices",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1.0",
+								"payments",
+								"prices"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Webhook - Stripe (Test)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200 or 400 (depending on signature)\", function () {",
+									"    pm.expect(pm.response.code).to.be.oneOf([200, 400]);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Stripe-Signature",
+								"value": "test_signature"
+							},
+							{
+								"key": "X-API-Key",
+								"value": "{{apiKey}}"
+							},
+							{
+								"key": "X-ClientId",
+								"value": "{{randomIP}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"id\": \"evt_test_webhook\",\n  \"object\": \"event\",\n  \"api_version\": \"2020-08-27\",\n  \"created\": 1234567890,\n  \"type\": \"invoice.payment_succeeded\",\n  \"data\": {\n    \"object\": {\n      \"id\": \"in_test_invoice\",\n      \"object\": \"invoice\"\n    }\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1.0/payments/webhook",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1.0",
+								"payments",
+								"webhook"
+							]
+						}
+									},
+				"response": []
+			},
+			{
+				"name": "Get User Overage Usage",
+				"event": [
+					{
+						"listen": "test",
+						"script": {
+							"exec": [
+								"pm.test(\"Status code is 200\", function () {",
+								"    pm.response.to.have.status(200);",
+								"});",
+								"",
+								"pm.test(\"Response has overage usage data\", function () {",
+								"    var jsonData = pm.response.json();",
+								"    pm.expect(jsonData).to.have.property('username');",
+								"    pm.expect(jsonData).to.have.property('tierName');",
+								"    pm.expect(jsonData).to.have.property('regularTokensUsed');",
+								"    pm.expect(jsonData).to.have.property('overageTokensUsed');",
+								"    pm.expect(jsonData).to.have.property('totalOverageCharges');",
+								"    pm.expect(jsonData).to.have.property('currency');",
+								"    pm.expect(jsonData).to.have.property('year');",
+								"    pm.expect(jsonData).to.have.property('month');",
+								"    pm.expect(jsonData).to.have.property('isEligibleForOverage');",
+								"});"
+							],
+							"type": "text/javascript"
+						}
+					}
+				],
+				"request": {
+					"method": "GET",
+					"header": [
+						{
+							"key": "Authorization",
+							"value": "Bearer {{authToken}}"
+						},
+						{
+							"key": "X-API-Key",
+							"value": "{{apiKey}}"
+						},
+						{
+							"key": "X-ClientId",
+							"value": "{{randomIP}}"
+						}
+					],
+					"url": {
+						"raw": "{{baseUrl}}/api/v1.0/payments/users/{{testUsername}}/overage-usage",
+						"host": [
+							"{{baseUrl}}"
+						],
+						"path": [
+							"api",
+							"v1.0",
+							"payments",
+							"users",
+							"{{testUsername}}",
+							"overage-usage"
+						]
+					}
+				},
+				"response": []
+			}
+		]
+	},
+	{
+		"name": "Scheduled Queries",
+			"item": [
+				{
+					"name": "Create Scheduled Flight Query - Valid",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response contains execution ID\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('scheduledExecutionUniqueId');",
+									"    pm.environment.set(\"flightExecutionId\", jsonData.scheduledExecutionUniqueId);",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-API-Key",
+								"value": "{{apiKey}}"
+							},
+							{
+								"key": "X-ClientId",
+								"value": "{{randomIP}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"departureAirportCode\": \"JFK\",\n  \"destinationAirportCode\": \"LAX\",\n  \"departureDate\": \"2025-07-15\",\n  \"returnDate\": \"2025-07-20\",\n  \"adults\": 2,\n  \"nextExecutionTime\": \"2025-06-20T10:00:00Z\",\n  \"schedule\": \"0 10 * * *\",\n  \"selectedColumns\": [\n    {\n      \"name\": \"price\",\n      \"isActive\": true\n    },\n    {\n      \"name\": \"airline\",\n      \"isActive\": true\n    }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1.0/scheduled-queries/flights/users/{{testUsername}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1.0",
+								"scheduled-queries",
+								"flights",
+								"users",
+								"{{testUsername}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Scheduled Hotel Query - Valid",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response contains execution ID\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('scheduledExecutionUniqueId');",
+									"    pm.environment.set(\"hotelExecutionId\", jsonData.scheduledExecutionUniqueId);",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-API-Key",
+								"value": "{{apiKey}}"
+							},
+							{
+								"key": "X-ClientId",
+								"value": "{{randomIP}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"location\": \"New York, NY\",\n  \"checkInDate\": \"2025-09-15T15:00:00Z\",\n  \"checkOutDate\": \"2025-09-20T11:00:00Z\",\n  \"nextExecutionTime\": \"2025-06-20T10:00:00Z\",\n  \"schedule\": \"0 10 * * *\",\n  \"selectedColumns\": [\n    {\n      \"name\": \"hotel_class\",\n      \"isActive\": true\n    },\n    {\n      \"name\": \"reviews\",\n      \"isActive\": true\n    }\n  ],\n  \"additionalParameters\": {\n    \"max_price\": 100,\n    \"adults\": 2,\n    \"children\": 0\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1.0/scheduled-queries/hotels/users/{{testUsername}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1.0",
+								"scheduled-queries",
+								"hotels",
+								"users",
+								"{{testUsername}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Scheduled Event Query - Valid",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response contains execution ID\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('scheduledExecutionUniqueId');",
+									"    pm.environment.set(\"eventExecutionId\", jsonData.scheduledExecutionUniqueId);",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-API-Key",
+								"value": "{{apiKey}}"
+							},
+							{
+								"key": "X-ClientId",
+								"value": "{{randomIP}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"searchQuery\": \"concerts\",\n  \"nextExecutionTime\": \"2025-06-20T10:00:00Z\",\n  \"schedule\": \"0 10 * * *\",\n  \"selectedColumns\": [\n    {\n      \"name\": \"address\",\n      \"isActive\": true\n    },\n    {\n      \"name\": \"date\",\n      \"isActive\": true\n    },\n    {\n      \"name\": \"venue\",\n      \"isActive\": true\n    }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1.0/scheduled-queries/events/users/{{testUsername}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1.0",
+								"scheduled-queries",
+								"events",
+								"users",
+								"{{testUsername}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Scheduled Local Places Query - Valid",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response contains execution ID\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('scheduledExecutionUniqueId');",
+									"    pm.environment.set(\"localPlacesExecutionId\", jsonData.scheduledExecutionUniqueId);",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-API-Key",
+								"value": "{{apiKey}}"
+							},
+							{
+								"key": "X-ClientId",
+								"value": "{{randomIP}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"location\": \"New York, NY\",\n  \"searchQuery\": \"restaurants\",\n  \"radius\": 5000,\n  \"nextExecutionTime\": \"2025-06-20T10:00:00Z\",\n  \"schedule\": \"0 10 * * *\",\n  \"selectedColumns\": [\n    {\n      \"name\": \"thumbnail\",\n      \"isActive\": true\n    },\n    {\n      \"name\": \"rating\",\n      \"isActive\": true\n    },\n    {\n      \"name\": \"address\",\n      \"isActive\": true\n    }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1.0/scheduled-queries/local-places/users/{{testUsername}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1.0",
+								"scheduled-queries",
+								"local-places",
+								"users",
+								"{{testUsername}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Scheduled Weather Query - Valid (City Name)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response contains execution ID\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('scheduledExecutionUniqueId');",
+									"    pm.environment.set(\"weatherExecutionId\", jsonData.scheduledExecutionUniqueId);",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-API-Key",
+								"value": "{{apiKey}}"
+							},
+							{
+								"key": "X-ClientId",
+								"value": "{{randomIP}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"cityName\": \"New York\",\n  \"nextExecutionTime\": \"2025-06-20T10:00:00Z\",\n  \"schedule\": \"0 10 * * *\",\n  \"selectedColumns\": [\n    {\n      \"name\": \"temperature\",\n      \"isActive\": true\n    },\n    {\n      \"name\": \"humidity\",\n      \"isActive\": true\n    },\n    {\n      \"name\": \"wind_speed\",\n      \"isActive\": true\n    },\n    {\n      \"name\": \"condition_description\",\n      \"isActive\": true\n    }\n  ],\n  \"additionalParameters\": {\n    \"units\": \"metric\",\n    \"forecastDays\": 5\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1.0/scheduled-queries/weathers/users/{{testUsername}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1.0",
+								"scheduled-queries",
+								"weathers",
+								"users",
+								"{{testUsername}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Scheduled Weather Query - Valid (Coordinates)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response contains execution ID\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('scheduledExecutionUniqueId');",
+									"    pm.environment.set(\"weatherCoordinatesExecutionId\", jsonData.scheduledExecutionUniqueId);",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-API-Key",
+								"value": "{{apiKey}}"
+							},
+							{
+								"key": "X-ClientId",
+								"value": "{{randomIP}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"latitude\": 40.7128,\n  \"longitude\": -74.0060,\n  \"nextExecutionTime\": \"2025-06-20T10:00:00Z\",\n  \"schedule\": \"0 */6 * * *\",\n  \"selectedColumns\": [\n    {\n      \"name\": \"location\",\n      \"isActive\": true\n    },\n    {\n      \"name\": \"current\",\n      \"isActive\": true\n    },\n    {\n      \"name\": \"forecast\",\n      \"isActive\": true\n    }\n  ],\n  \"additionalParameters\": {\n    \"units\": \"imperial\",\n    \"forecastDays\": 3\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1.0/scheduled-queries/weathers/users/{{testUsername}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1.0",
+								"scheduled-queries",
+								"weathers",
+								"users",
+								"{{testUsername}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Scheduled Weather Query - Invalid (Missing Location)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400 Bad Request\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test(\"Response contains validation error\", function () {",
+									"    var responseText = pm.response.text();",
+									"    pm.expect(responseText).to.include('location');",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-API-Key",
+								"value": "{{apiKey}}"
+							},
+							{
+								"key": "X-ClientId",
+								"value": "{{randomIP}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"nextExecutionTime\": \"2025-06-20T10:00:00Z\",\n  \"schedule\": \"0 10 * * *\",\n  \"selectedColumns\": [\n    {\n      \"name\": \"temperature\",\n      \"isActive\": true\n    }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1.0/scheduled-queries/weathers/users/{{testUsername}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1.0",
+								"scheduled-queries",
+								"weathers",
+								"users",
+								"{{testUsername}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Scheduled Weather Query - Invalid Units & Forecast Days",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400 Bad Request\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test(\"Response contains validation error for units and forecast days\", function () {",
+									"    var responseText = pm.response.text();",
+									"    pm.expect(responseText).to.include('Units must be') || pm.expect(responseText).to.include('Forecast days must be');",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-API-Key",
+								"value": "{{apiKey}}"
+							},
+							{
+								"key": "X-ClientId",
+								"value": "{{randomIP}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"cityName\": \"London\",\n  \"nextExecutionTime\": \"2025-06-20T10:00:00Z\",\n  \"schedule\": \"0 10 * * *\",\n  \"selectedColumns\": [\n    {\n      \"name\": \"temperature\",\n      \"isActive\": true\n    }\n  ],\n  \"additionalParameters\": {\n    \"units\": \"celsius\",\n    \"forecastDays\": 10\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1.0/scheduled-queries/weathers/users/{{testUsername}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1.0",
+								"scheduled-queries",
+								"weathers",
+								"users",
+								"{{testUsername}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Scheduled Currency Exchange Query - Valid (With Parameters)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response contains execution ID\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('scheduledExecutionUniqueId');",
+									"    pm.environment.set(\"currencyExchangeExecutionId\", jsonData.scheduledExecutionUniqueId);",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-API-Key",
+								"value": "{{apiKey}}"
+							},
+							{
+								"key": "X-ClientId",
+								"value": "{{randomIP}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"baseCurrency\": \"USD\",\n  \"targetCurrencies\": [\"EUR\", \"GBP\", \"JPY\", \"CAD\"],\n  \"nextExecutionTime\": \"2025-06-20T10:00:00Z\",\n  \"schedule\": \"0 9 * * *\",\n  \"selectedColumns\": [\n    {\n      \"name\": \"baseCurrency\",\n      \"isActive\": true\n    },\n    {\n      \"name\": \"exchangeRates\",\n      \"isActive\": true\n    },\n    {\n      \"name\": \"timestamp\",\n      \"isActive\": true\n    }\n  ],\n  \"additionalParameters\": \"{\\\"amount\\\": 1000, \\\"precision\\\": 4}\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1.0/scheduled-queries/currency-exchanges/users/{{testUsername}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1.0",
+								"scheduled-queries",
+								"currency-exchanges",
+								"users",
+								"{{testUsername}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Scheduled Currency Exchange Query - Valid (Simple)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response contains execution ID\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('scheduledExecutionUniqueId');",
+									"    pm.environment.set(\"currencyExchangeSimpleExecutionId\", jsonData.scheduledExecutionUniqueId);",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-API-Key",
+								"value": "{{apiKey}}"
+							},
+							{
+								"key": "X-ClientId",
+								"value": "{{randomIP}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"baseCurrency\": \"USD\",\n  \"targetCurrencies\": [\"EUR\", \"GBP\"],\n  \"nextExecutionTime\": \"2025-06-20T10:00:00Z\",\n  \"schedule\": \"0 9 * * *\",\n  \"selectedColumns\": [\n    {\n      \"name\": \"baseCurrency\",\n      \"isActive\": true\n    },\n    {\n      \"name\": \"exchangeRates\",\n      \"isActive\": true\n    }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1.0/scheduled-queries/currency-exchanges/users/{{testUsername}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1.0",
+								"scheduled-queries",
+								"currency-exchanges",
+								"users",
+								"{{testUsername}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Scheduled Currency Exchange Query - User-Friendly Column Names",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response contains execution ID\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('scheduledExecutionUniqueId');",
+									"    pm.environment.set(\"currencyExchangeFriendlyExecutionId\", jsonData.scheduledExecutionUniqueId);",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-API-Key",
+								"value": "{{apiKey}}"
+							},
+							{
+								"key": "X-ClientId",
+								"value": "{{randomIP}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"baseCurrency\": \"USD\",\n  \"targetCurrencies\": [\"EUR\", \"GBP\", \"CAD\"],\n  \"nextExecutionTime\": \"2025-06-20T10:00:00Z\",\n  \"schedule\": \"0 9 * * *\",\n  \"selectedColumns\": [\n    {\n      \"name\": \"base_currency\",\n      \"isActive\": true\n    },\n    {\n      \"name\": \"rates\",\n      \"isActive\": true\n    },\n    {\n      \"name\": \"last_updated\",\n      \"isActive\": true\n    }\n  ],\n  \"additionalParameters\": \"{\\\"amount\\\": 500, \\\"precision\\\": 2}\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1.0/scheduled-queries/currency-exchanges/users/{{testUsername}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1.0",
+								"scheduled-queries",
+								"currency-exchanges",
+								"users",
+								"{{testUsername}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Scheduled Currency Exchange Query - Invalid Currency Code",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400 Bad Request\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test(\"Response contains validation error for currency code\", function () {",
+									"    var responseText = pm.response.text();",
+									"    pm.expect(responseText).to.include('currency') || pm.expect(responseText).to.include('3 characters');",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-API-Key",
+								"value": "{{apiKey}}"
+							},
+							{
+								"key": "X-ClientId",
+								"value": "{{randomIP}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"baseCurrency\": \"US\",\n  \"targetCurrencies\": [\"EUR\", \"GBP\"],\n  \"nextExecutionTime\": \"2025-06-20T10:00:00Z\",\n  \"schedule\": \"0 9 * * *\",\n  \"selectedColumns\": [\n    {\n      \"name\": \"exchangeRates\",\n      \"isActive\": true\n    }\n  ],\n  \"additionalParameters\": null\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1.0/scheduled-queries/currency-exchanges/users/{{testUsername}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1.0",
+								"scheduled-queries",
+								"currency-exchanges",
+								"users",
+								"{{testUsername}}"
+							]
+						}
+									},
+				"response": []
+			}
+		]
+	},
+	{
+		"name": "Scheduled Execution Management",
+			"item": [
+				{
+					"name": "Update Execution Configuration - Activate",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 204 No Content\", function () {",
+									"    pm.response.to.have.status(204);",
+									"});",
+									"",
+									"pm.test(\"No response body for successful update\", function () {",
+									"    pm.expect(pm.response.text()).to.be.empty;",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-API-Key",
+								"value": "{{apiKey}}"
+							},
+							{
+								"key": "X-ClientId",
+								"value": "{{randomIP}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"isActive\": false\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1.0/scheduled-executions/{{hotelExecutionId}}/users/{{testUsername}}/configuration",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1.0",
+								"scheduled-executions",
+								"{{hotelExecutionId}}",
+								"users",
+								"{{testUsername}}",
+								"configuration"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get User Scheduled Executions - List All",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response contains scheduled executions\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.be.an('array');",
+									"    if (jsonData.length > 0) {",
+									"        pm.expect(jsonData[0]).to.have.property('uniqueId');",
+									"        pm.expect(jsonData[0]).to.have.property('name');",
+									"        pm.expect(jsonData[0]).to.have.property('isActive');",
+									"        pm.expect(jsonData[0]).to.have.property('nextExecutionTime');",
+									"        pm.expect(jsonData[0]).to.have.property('schedule');",
+									"        pm.expect(jsonData[0]).to.have.property('lastExecutionTime');",
+									"        pm.expect(jsonData[0]).to.have.property('executionCount');",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-API-Key",
+								"value": "{{apiKey}}"
+							},
+							{
+								"key": "X-ClientId",
+								"value": "{{randomIP}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1.0/scheduled-executions/users/{{testUsername}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1.0",
+								"scheduled-executions",
+								"users",
+								"{{testUsername}}"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1",
+									"disabled": true
+								},
+								{
+									"key": "limit",
+									"value": "10",
+									"disabled": true
+								},
+								{
+									"key": "type",
+									"value": "CurrencyExchange",
+									"disabled": true
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Scheduled Execution Results - Currency Exchange",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response contains execution results\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('data');",
+									"    pm.expect(jsonData).to.have.property('pagination');",
+									"    pm.expect(jsonData.data).to.be.an('array');",
+									"    if (jsonData.data.length > 0) {",
+									"        var result = jsonData.data[0];",
+									"        pm.expect(result).to.have.property('executionId');",
+									"        pm.expect(result).to.have.property('executedAt');",
+									"        pm.expect(result).to.have.property('status');",
+									"        pm.expect(result).to.have.property('data');",
+									"        pm.expect(result).to.have.property('selectedColumns');",
+									"        ",
+									"        // Currency exchange specific data",
+									"        if (result.data && result.data.rates) {",
+									"            pm.expect(result.data).to.have.property('baseCurrency');",
+									"            pm.expect(result.data).to.have.property('rates');",
+									"            pm.expect(result.data).to.have.property('lastUpdated');",
+									"        }",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-API-Key",
+								"value": "{{apiKey}}"
+							},
+							{
+								"key": "X-ClientId",
+								"value": "{{randomIP}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1.0/scheduled-executions/{{currencyExchangeExecutionId}}/users/{{testUsername}}/results",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1.0",
+								"scheduled-executions",
+								"{{currencyExchangeExecutionId}}",
+								"users",
+								"{{testUsername}}",
+								"results"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1",
+									"disabled": true
+								},
+								{
+									"key": "limit",
+									"value": "10",
+									"disabled": true
+								},
+								{
+									"key": "from",
+									"value": "2025-06-01T00:00:00Z",
+									"disabled": true
+								},
+								{
+									"key": "to",
+									"value": "2025-06-30T23:59:59Z",
+									"disabled": true
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Latest Execution Result - Currency Exchange",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response contains latest execution result\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('executionId');",
+									"    pm.expect(jsonData).to.have.property('executedAt');",
+									"    pm.expect(jsonData).to.have.property('status');",
+									"    pm.expect(jsonData).to.have.property('data');",
+									"    ",
+									"    // Currency exchange specific data",
+									"    if (jsonData.data && jsonData.data.rates) {",
+									"        pm.expect(jsonData.data).to.have.property('baseCurrency');",
+									"        pm.expect(jsonData.data).to.have.property('rates');",
+									"        pm.expect(jsonData.data.rates).to.be.an('array');",
+									"        ",
+									"        if (jsonData.data.rates.length > 0) {",
+									"            var rate = jsonData.data.rates[0];",
+									"            pm.expect(rate).to.have.property('currencyCode');",
+									"            pm.expect(rate).to.have.property('rate');",
+									"            pm.expect(rate).to.have.property('lastUpdated');",
+									"        }",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-API-Key",
+								"value": "{{apiKey}}"
+							},
+							{
+								"key": "X-ClientId",
+								"value": "{{randomIP}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1.0/scheduled-executions/{{currencyExchangeExecutionId}}/users/{{testUsername}}/results/latest",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1.0",
+								"scheduled-executions",
+								"{{currencyExchangeExecutionId}}",
+								"users",
+								"{{testUsername}}",
+								"results",
+								"latest"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Scheduled Execution - Currency Exchange",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 204 No Content\", function () {",
+									"    pm.response.to.have.status(204);",
+									"});",
+									"",
+									"pm.test(\"No response body for successful deletion\", function () {",
+									"    pm.expect(pm.response.text()).to.be.empty;",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-API-Key",
+								"value": "{{apiKey}}"
+							},
+							{
+								"key": "X-ClientId",
+								"value": "{{randomIP}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1.0/scheduled-executions/{{currencyExchangeSimpleExecutionId}}/users/{{testUsername}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1.0",
+								"scheduled-executions",
+								"{{currencyExchangeSimpleExecutionId}}",
+								"users",
+								"{{testUsername}}"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+    
+    {
+      "name": "Internal Token Management",
+      "item": [
+        {
+          "name": "Deduct Tokens - Valid Request",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response contains token deduction details\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('remainingTokens');",
+                  "    pm.expect(jsonData).to.have.property('dailyLimit');",
+                  "    pm.expect(jsonData).to.have.property('tokensDeducted');",
+                  "    pm.expect(jsonData).to.have.property('limitReached');",
+                  "    pm.expect(jsonData).to.have.property('canUseApi');",
+                  "    pm.expect(jsonData.tokensDeducted).to.be.a('number');",
+                  "    pm.expect(jsonData.remainingTokens).to.be.a('number');",
+                  "    pm.expect(jsonData.dailyLimit).to.be.a('number');",
+                  "    pm.expect(jsonData.limitReached).to.be.a('boolean');",
+                  "    pm.expect(jsonData.canUseApi).to.be.a('boolean');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Internal-Auth",
+                "value": "{{internalApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{testUsername}}\",\n  \"tokensToDeduct\": 5,\n  \"serviceType\": \"Flight\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/internal/token/deduct",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "internal",
+                "token",
+                "deduct"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Deduct Tokens - Invalid Internal Auth",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 403 Forbidden\", function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});",
+                  "",
+                  "pm.test(\"Response contains error message\", function () {",
+                  "    var responseText = pm.response.text();",
+                  "    pm.expect(responseText).to.include('Forbidden') || pm.expect(responseText).to.include('Access denied');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Internal-Auth",
+                "value": "invalid_key_123"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{testUsername}}\",\n  \"tokensToDeduct\": 5,\n  \"serviceType\": \"Flight\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/internal/token/deduct",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "internal",
+                "token",
+                "deduct"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Deduct Tokens - Missing Internal Auth",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 403 Forbidden\", function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});",
+                  "",
+                  "pm.test(\"Response contains error message\", function () {",
+                  "    var responseText = pm.response.text();",
+                  "    pm.expect(responseText).to.include('Forbidden') || pm.expect(responseText).to.include('Access denied');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{testUsername}}\",\n  \"tokensToDeduct\": 5,\n  \"serviceType\": \"Flight\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/internal/token/deduct",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "internal",
+                "token",
+                "deduct"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Deduct Tokens - Invalid Request (Negative Tokens)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 400 Bad Request\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test(\"Response contains validation error\", function () {",
+                  "    var responseText = pm.response.text();",
+                  "    pm.expect(responseText).to.include('tokens') || pm.expect(responseText).to.include('invalid');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Internal-Auth",
+                "value": "{{internalApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{testUsername}}\",\n  \"tokensToDeduct\": -5,\n  \"serviceType\": \"Flight\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/internal/token/deduct",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "internal",
+                "token",
+                "deduct"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Deduct Tokens - User Not Found",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 400 Bad Request\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test(\"Response contains error message\", function () {",
+                  "    var responseText = pm.response.text();",
+                  "    pm.expect(responseText).to.include('user') || pm.expect(responseText).to.include('not found');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Internal-Auth",
+                "value": "{{internalApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"nonexistent_user_12345\",\n  \"tokensToDeduct\": 5,\n  \"serviceType\": \"Flight\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/internal/token/deduct",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "internal",
+                "token",
+                "deduct"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Check Feature Flag - Valid Request",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response contains feature flag details\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('featureName');",
+                  "    pm.expect(jsonData).to.have.property('isEnabled');",
+                  "    pm.expect(jsonData.featureName).to.be.a('string');",
+                  "    pm.expect(jsonData.isEnabled).to.be.a('boolean');",
+                  "    pm.expect(jsonData.featureName).to.equal('OpenWeatherMap');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Internal-Auth",
+                "value": "{{internalApiKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/internal/feature/OpenWeatherMap/enabled",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "internal",
+                "feature",
+                "OpenWeatherMap",
+                "enabled"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Check Feature Flag - With User ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response contains feature flag details with user ID\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('featureName');",
+                  "    pm.expect(jsonData).to.have.property('userId');",
+                  "    pm.expect(jsonData).to.have.property('isEnabled');",
+                  "    pm.expect(jsonData.featureName).to.be.a('string');",
+                  "    pm.expect(jsonData.userId).to.be.a('string');",
+                  "    pm.expect(jsonData.isEnabled).to.be.a('boolean');",
+                  "    pm.expect(jsonData.featureName).to.equal('OpenWeatherMap');",
+                  "    pm.expect(jsonData.userId).to.equal('test_user_123');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Internal-Auth",
+                "value": "{{internalApiKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/internal/feature/OpenWeatherMap/enabled?userId=test_user_123",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "internal",
+                "feature",
+                "OpenWeatherMap",
+                "enabled"
+              ],
+              "query": [
+                {
+                  "key": "userId",
+                  "value": "test_user_123"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Auto-set base URL if not already set",
+          "if (!pm.environment.get(\"baseUrl\")) {",
+          "    pm.environment.set(\"baseUrl\", \"http://localhost:5330\");",
+          "}",
+          "",
+          "// Auto-set API key if not already set",
+          "if (!pm.environment.get(\"apiKey\")) {",
+          "    pm.environment.set(\"apiKey\", \"e3f7b9c2-6d4a-4a5e-8f1d-92b3e7c1a8d5\");",
+          "}",
+          "",
+          "// Generate random IP address for each request",
+          "function generateRandomIP() {",
+          "    const octet1 = Math.floor(Math.random() * 223) + 1; // 1-223 (avoid 0, 224-255)",
+          "    const octet2 = Math.floor(Math.random() * 256);",
+          "    const octet3 = Math.floor(Math.random() * 256);",
+          "    const octet4 = Math.floor(Math.random() * 254) + 1; // 1-254 (avoid 0, 255)",
+          "    return `${octet1}.${octet2}.${octet3}.${octet4}`;",
+          "}",
+          "pm.environment.set(\"randomIP\", generateRandomIP());",
+          "",
+          "// Auto-set test username if not already set",
+          "if (!pm.environment.get(\"testUsername\")) {",
+          "    pm.environment.set(\"testUsername\", \"test_user_\" + Math.random().toString(36).substr(2, 9));",
+          "}",
+          "",
+          "// Log current IP for debugging",
+          "console.log('Using random IP: ' + pm.environment.get(\"randomIP\"));"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5330",
+      "type": "string"
+    },
+    {
+      "key": "apiKey",
+      "value": "e3f7b9c2-6d4a-4a5e-8f1d-92b3e7c1a8d5",
+      "type": "string"
+    },
+    {
+      "key": "authToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "internalApiKey",
+      "value": "internal-api-key-123",
+      "type": "string"
+    }
+  ]
+}

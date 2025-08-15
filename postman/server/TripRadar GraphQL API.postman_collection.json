@@ -1,0 +1,296 @@
+{
+	"info": {
+		"_postman_id": "df148032-cf94-4d85-910c-b1724037e500",
+		"name": "TripRadar GraphQL API",
+		"description": "Comprehensive GraphQL API collection for TripRadar travel services. Includes Maps, Local Places, Events, Flights, Hotels, Place Reviews, Charging Stations, Weather, Currency Exchange, Holidays, Points of Interest, and Public Transport APIs with example queries.\n\n**Authentication Required:**\n- All requests require valid Bearer token in Authorization header\n- API Key must be provided in X-API-Key header\n- Client ID should be provided in X-ClientId header for tracking\n\n**Getting Started:**\n1. First run the login request from REST API collection to get auth token\n2. The token will be automatically stored in environment variables\n3. Run any GraphQL query - authentication headers are automatically added\n\n**Query Examples:**\nEach folder contains example queries for different travel services with proper filtering, sorting, and localization options.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "31378021"
+	},
+	"item": [
+		{
+			"name": "🗺️ Maps API",
+			"item": [
+				{
+					"name": "Get Place by Place ID - ✅",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response contains GraphQL data\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('data');",
+									"    pm.expect(jsonData.data).to.have.property('maps');",
+									"});",
+									"",
+									"pm.test(\"Maps data contains place results\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.data && jsonData.data.maps) {",
+									"        pm.expect(jsonData.data.maps).to.have.property('placeResults');",
+									"        pm.expect(jsonData.data.maps).to.have.property('searchMetadata');",
+									"    }",
+									"});",
+									"",
+									"pm.test(\"No GraphQL errors\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.not.have.property('errors');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-API-Key",
+								"value": "{{apiKey}}"
+							},
+							{
+								"key": "X-ClientId",
+								"value": "{{randomIP}}"
+							}
+						],
+						"body": {
+							"mode": "graphql",
+							"graphql": {
+								"query": "query GetPlaceDetails {\n  maps(request: {\n    username: \"{{testUsername}}\"\n    placeId: \"ChIJN1t_tDeuEmsRUsoyG83frY4\"\n  }) {\n    searchMetadata {\n      id\n      status\n      totalTimeTaken\n    }\n    searchParameters {\n      engine\n      placeId\n      googleDomain\n      hl\n      gl\n    }\n    placeResults {\n      title\n      placeId\n      address\n      rating\n      reviews\n      website\n      phone\n      type\n      price\n      description\n      gpsCoordinates {\n        latitude\n        longitude\n      }\n      serviceOptions {\n        dineIn\n        takeout\n        delivery\n      }\n      userReviews {\n        summary {\n          snippet\n        }\n        mostRelevant {\n          username\n          rating\n          description\n          date\n        }\n      }\n      images {\n        title\n        thumbnail\n      }\n      hours\n      openState\n    }\n  }\n}",
+								"variables": ""
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/graphql",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"graphql"
+							]
+						},
+						"description": "Get comprehensive place details using Google Place ID. Returns detailed information including reviews, photos, hours, and contact information."
+					},
+					"response": []
+				},
+				{
+					"name": "Search Places by Query with Location - ✅",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response contains GraphQL data\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('data');",
+									"    pm.expect(jsonData.data).to.have.property('maps');",
+									"});",
+									"",
+									"pm.test(\"No GraphQL errors\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.not.have.property('errors');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-API-Key",
+								"value": "{{apiKey}}"
+							},
+							{
+								"key": "X-ClientId",
+								"value": "{{randomIP}}"
+							}
+						],
+						"body": {
+							"mode": "graphql",
+							"graphql": {
+								"query": "query SearchCoffeeShops {\n  maps(request: {\n    username: \"{{testUsername}}\"\n    searchQuery: { q: \"coffee shop\" }\n    type: \"search\"\n    ll: \"@40.7455096,-74.0083012,14z\"\n    localization: {\n      gl: \"us\"\n      hl: \"en\"\n      currency: \"USD\"\n      googleDomain: \"google.com\"\n    }\n    pagination: { start: 0 }\n  }) {\n    searchMetadata {\n      id\n      status\n      totalTimeTaken\n    }\n    searchParameters {\n      engine\n      placeId\n      googleDomain\n      hl\n      gl\n    }\n    placeResults {\n      title\n      placeId\n      address\n      rating\n      reviews\n      website\n      phone\n      type\n      price\n      description\n      gpsCoordinates {\n        latitude\n        longitude\n      }\n      serviceOptions {\n        dineIn\n        takeout\n        delivery\n      }\n      userReviews {\n        summary {\n          snippet\n        }\n        mostRelevant {\n          username\n          rating\n          description\n          date\n        }\n      }\n      images {\n        title\n        thumbnail\n      }\n      hours\n      openState\n    }\n  }\n}",
+								"variables": ""
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/graphql",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"graphql"
+							]
+						},
+						"description": "Search for places using a query term with geographic location. Useful for finding businesses near specific coordinates."
+					},
+					"response": []
+				}
+			],
+			"description": "Maps API endpoints for getting detailed place information from Google Maps via SerpAPI."
+		},
+		{
+			"name": "🏢 Local Places API",
+			"item": [
+				{
+					"name": "Search Restaurants with Filters - ✅",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response contains local places data\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('data');",
+									"    pm.expect(jsonData.data).to.have.property('localPlaces');",
+									"});",
+									"",
+									"pm.test(\"Local places contains results\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.data && jsonData.data.localPlaces) {",
+									"        pm.expect(jsonData.data.localPlaces).to.have.property('localResults');",
+									"        pm.expect(jsonData.data.localPlaces).to.have.property('searchMetadata');",
+									"    }",
+									"});",
+									"",
+									"pm.test(\"No GraphQL errors\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.not.have.property('errors');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							},
+							{
+								"key": "X-API-Key",
+								"value": "{{apiKey}}"
+							},
+							{
+								"key": "X-ClientId",
+								"value": "{{randomIP}}"
+							}
+						],
+						"body": {
+							"mode": "graphql",
+							"graphql": {
+								"query": "query SearchRestaurants {\n  localPlaces(request: {\n    username: \"{{testUsername}}\"\n    searchQuery: {\n      q: \"restaurants\"\n    }\n    advancedParameters: {\n      location: \"New York, NY\"\n      uule: \"\"\n    }\n    filters: {\n      tbs: \"lf:1,lf_ui:9\"  # Open now filter\n    }\n    pagination: {\n      start: 0\n    }\n    localization: {\n      gl: \"us\"\n      hl: \"en\"\n      currency: \"USD\"\n    }\n  }) {\n    searchMetadata {\n      id\n      status\n      totalTimeTaken\n    }\n    searchParameters {\n      engine\n      q\n      locationRequested    \n      locationUsed         \n      hl\n      gl\n    }\n    localResults {\n      position\n      title\n      placeId\n      address\n      rating\n      reviews              \n      price                \n      type\n      thumbnail\n      gpsCoordinates {\n        latitude\n        longitude\n      }\n      hours               \n      links {\n        website            \n        directions\n        order\n      }\n      serviceOptions {\n        dineIn\n        takeout\n        delivery\n        reservable\n      }\n    }\n  }\n}",
+								"variables": ""
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/graphql",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"graphql"
+							]
+						},
+						"description": "Search for restaurants with advanced filtering, sorting, and pagination options."
+					},
+					"response": []
+				}
+			],
+			"description": "Local Places API for searching local businesses with filtering and sorting capabilities."
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Auto-set base URL if not already set",
+					"if (!pm.environment.get(\"baseUrl\")) {",
+					"    pm.environment.set(\"baseUrl\", \"http://localhost:5330\");",
+					"}",
+					"",
+					"// Auto-set API key if not already set",
+					"if (!pm.environment.get(\"apiKey\")) {",
+					"    pm.environment.set(\"apiKey\", \"e3f7b9c2-6d4a-4a5e-8f1d-92b3e7c1a8d5\");",
+					"}",
+					"",
+					"// Generate random IP address for each request",
+					"function generateRandomIP() {",
+					"    const octet1 = Math.floor(Math.random() * 223) + 1; // 1-223 (avoid 0, 224-255)",
+					"    const octet2 = Math.floor(Math.random() * 256);",
+					"    const octet3 = Math.floor(Math.random() * 256);",
+					"    const octet4 = Math.floor(Math.random() * 254) + 1; // 1-254 (avoid 0, 255)",
+					"    return `${octet1}.${octet2}.${octet3}.${octet4}`;",
+					"}",
+					"pm.environment.set(\"randomIP\", generateRandomIP());",
+					"",
+					"// Auto-set test username if not already set",
+					"if (!pm.environment.get(\"testUsername\")) {",
+					"    pm.environment.set(\"testUsername\", \"john_doe\");",
+					"}",
+					"",
+					"// Check if user is authenticated",
+					"const authToken = pm.environment.get('authToken');",
+					"if (!authToken || authToken === '') {",
+					"    console.warn('Warning: No auth token found. Please run login from REST API collection first.');",
+					"}",
+					"",
+					"// Log current setup for debugging",
+					"console.log('GraphQL Request Setup:');",
+					"console.log('- Base URL: ' + pm.environment.get('baseUrl'));",
+					"console.log('- Username: ' + pm.environment.get('testUsername'));",
+					"console.log('- Auth Token: ' + (authToken ? 'Set' : 'Not Set'));",
+					"console.log('- Random IP: ' + pm.environment.get('randomIP'));"
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:5330",
+			"type": "string"
+		},
+		{
+			"key": "apiKey",
+			"value": "e3f7b9c2-6d4a-4a5e-8f1d-92b3e7c1a8d5",
+			"type": "string"
+		}
+	]
+}
