@@ -4,6 +4,7 @@ obj/
 .vs/
 .vscode/
 .windsurf/
+.cursor/
 *.user
 *.suo
 *.userosscache

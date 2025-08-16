@@ -1,0 +1,442 @@
+name: Deploy TripRadar Application
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+      deploy_infrastructure:
+        description: 'Deploy Infrastructure'
+        required: true
+        default: true
+        type: boolean
+      image_tag:
+        description: 'Container image tag'
+        required: false
+        default: 'latest'
+        type: string
+      confirm_production:
+        description: 'Type "CONFIRM" to deploy to production'
+        required: false
+        type: string
+  push:
+    branches:
+      - main
+    paths:
+      - 'TripRadar.API/**'
+      - 'TripRadar.Jobs.API/**'
+      - 'TripRadar.Db/**'
+      - 'TripRadar.Application/**'
+      - 'TripRadar.Domain/**'
+      - 'TripRadar.Infrastructure/**'
+      - '.github/workflows/tripradar-deploy.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'TripRadar.API/**'
+      - 'TripRadar.Jobs.API/**'
+      - 'TripRadar.Db/**'
+      - '.github/workflows/tripradar-deploy.yml'
+
+env:
+  AZURE_REGION: 'North Europe'
+  REGISTRY_NAME: 'tripradar'
+  DOTNET_VERSION: '9.0.x'
+
+jobs:
+  validate:
+    name: Validate and Build
+    runs-on: ubuntu-latest
+    
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tags }}
+      should_deploy: ${{ steps.deploy_decision.outputs.should_deploy }}
+      target_environment: ${{ steps.deploy_decision.outputs.environment }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore dependencies
+        run: dotnet restore TripRadar.sln
+
+      - name: Build solution
+        run: dotnet build TripRadar.sln --configuration Release --no-restore
+
+      - name: Run tests
+        run: dotnet test TripRadar.sln --configuration Release --no-build --verbosity normal
+
+      - name: Determine deployment decision
+        id: deploy_decision
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "should_deploy=true" >> $GITHUB_OUTPUT
+            echo "environment=${{ github.event.inputs.environment }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.ref }}" = "refs/heads/main" ] && [ "${{ github.event_name }}" = "push" ]; then
+            echo "should_deploy=true" >> $GITHUB_OUTPUT
+            echo "environment=dev" >> $GITHUB_OUTPUT
+          else
+            echo "should_deploy=false" >> $GITHUB_OUTPUT
+            echo "environment=none" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Generate image metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            placeholder-registry/tripradar-api
+            placeholder-registry/tripradar-jobs-api
+            placeholder-registry/tripradar-db
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha
+            type=raw,value=${{ github.event.inputs.image_tag || 'latest' }}
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: validate
+    if: needs.validate.outputs.should_deploy == 'true'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Checkov (Infrastructure Security Scan)
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: bicep/
+          framework: bicep
+          output_format: sarif
+          output_file_path: reports/checkov.sarif
+          
+      - name: Upload Checkov SARIF results
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: reports/checkov.sarif
+
+      - name: .NET Security Scan
+        run: |
+          dotnet list TripRadar.sln package --vulnerable --include-transitive > vulnerability-report.txt || true
+          if grep -q "vulnerable" vulnerability-report.txt; then
+            echo "⚠️ Vulnerable packages found:"
+            cat vulnerability-report.txt
+          else
+            echo "✅ No vulnerable packages found"
+          fi
+
+  build-and-push:
+    name: Build and Push Container Images
+    runs-on: ubuntu-latest
+    needs: [validate, security-scan]
+    if: needs.validate.outputs.should_deploy == 'true'
+    
+    outputs:
+      api_image: ${{ steps.images.outputs.api_image }}
+      jobs_image: ${{ steps.images.outputs.jobs_image }}
+      db_image: ${{ steps.images.outputs.db_image }}
+      registry_server: ${{ steps.acr.outputs.login_server }}
+      
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Get ACR details
+        id: acr
+        run: |
+          ENV="${{ needs.validate.outputs.target_environment }}"
+          
+          # Find ACR in the target environment
+          ACR_NAME=$(az acr list --query "[?contains(name, 'tripradar') && contains(name, '$ENV')].name" -o tsv | head -1)
+          
+          if [ -z "$ACR_NAME" ]; then
+            echo "❌ Could not find ACR for environment: $ENV"
+            exit 1
+          fi
+          
+          ACR_LOGIN_SERVER=$(az acr show --name $ACR_NAME --query loginServer -o tsv)
+          
+          echo "acr_name=$ACR_NAME" >> $GITHUB_OUTPUT
+          echo "login_server=$ACR_LOGIN_SERVER" >> $GITHUB_OUTPUT
+          echo "📍 Using ACR: $ACR_LOGIN_SERVER"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Azure Container Registry
+        uses: azure/docker-login@v2
+        with:
+          login-server: ${{ steps.acr.outputs.login_server }}
+          username: ${{ steps.acr.outputs.acr_name }}
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      - name: Build and push images
+        id: images
+        run: |
+          IMAGE_TAG="${{ github.event.inputs.image_tag || 'latest' }}"
+          REGISTRY="${{ steps.acr.outputs.login_server }}"
+          
+          # Build Main API
+          API_IMAGE="$REGISTRY/tripradar-api:$IMAGE_TAG"
+          echo "🔨 Building Main API: $API_IMAGE"
+          docker build -t $API_IMAGE -f TripRadar.API/Dockerfile .
+          docker push $API_IMAGE
+          echo "✅ Main API pushed successfully"
+          
+          # Build Jobs API
+          JOBS_IMAGE="$REGISTRY/tripradar-jobs-api:$IMAGE_TAG"
+          echo "🔨 Building Jobs API: $JOBS_IMAGE"
+          docker build -t $JOBS_IMAGE -f TripRadar.Jobs.API/Dockerfile .
+          docker push $JOBS_IMAGE
+          echo "✅ Jobs API pushed successfully"
+          
+          # Build Database
+          DB_IMAGE="$REGISTRY/tripradar-db:$IMAGE_TAG"
+          echo "🔨 Building Database: $DB_IMAGE"
+          docker build -t $DB_IMAGE -f TripRadar.Db/Dockerfile .
+          docker push $DB_IMAGE
+          echo "✅ Database image pushed successfully"
+          
+          # Set outputs
+          echo "api_image=$API_IMAGE" >> $GITHUB_OUTPUT
+          echo "jobs_image=$JOBS_IMAGE" >> $GITHUB_OUTPUT
+          echo "db_image=$DB_IMAGE" >> $GITHUB_OUTPUT
+
+      - name: Security scan with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ steps.images.outputs.api_image }}
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy scan results
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  deploy-infrastructure:
+    name: Deploy Infrastructure
+    runs-on: ubuntu-latest
+    needs: [validate, build-and-push]
+    if: needs.validate.outputs.should_deploy == 'true' && github.event.inputs.deploy_infrastructure != 'false'
+    environment: 
+      name: ${{ needs.validate.outputs.target_environment }}
+    
+    outputs:
+      resource_group: ${{ steps.deploy.outputs.resource_group }}
+      api_url: ${{ steps.deploy.outputs.api_url }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Production confirmation check
+        if: needs.validate.outputs.target_environment == 'prod'
+        run: |
+          if [ "${{ github.event.inputs.confirm_production }}" != "CONFIRM" ]; then
+            echo "❌ Production deployment requires confirmation. Please enter 'CONFIRM' in the input field."
+            exit 1
+          fi
+          echo "✅ Production deployment confirmed"
+
+      - name: Deploy Infrastructure
+        id: deploy
+        run: |
+          ENV="${{ needs.validate.outputs.target_environment }}"
+          DEPLOYMENT_NAME="tripradar-infra-$ENV-$(date +%Y%m%d-%H%M%S)"
+          
+          echo "🚀 Deploying infrastructure for environment: $ENV"
+          
+          az deployment sub create \
+            --name "$DEPLOYMENT_NAME" \
+            --location "${{ env.AZURE_REGION }}" \
+            --template-file bicep/deploy.bicep \
+            --parameters bicep/parameters/$ENV.bicepparam \
+            --parameters keyVaultAdminObjectId="${{ secrets.KEYVAULT_ADMIN_OBJECT_ID }}" \
+            --parameters postgresqlAdminUsername="${{ secrets.POSTGRESQL_ADMIN_USERNAME }}" \
+            --parameters postgresqlAdminPassword="${{ secrets.POSTGRESQL_ADMIN_PASSWORD }}" \
+            --parameters containerImages='{"mainApi":"${{ needs.build-and-push.outputs.api_image }}","jobsApi":"${{ needs.build-and-push.outputs.jobs_image }}","database":"${{ needs.build-and-push.outputs.db_image }}"}' \
+            --output json > deployment-output.json
+          
+          # Extract outputs
+          RESOURCE_GROUP=$(cat deployment-output.json | jq -r '.properties.outputs.resourceGroup.value.name')
+          API_URL=$(cat deployment-output.json | jq -r '.properties.outputs.quickAccess.value.mainApiUrl // "N/A"')
+          
+          echo "resource_group=$RESOURCE_GROUP" >> $GITHUB_OUTPUT
+          echo "api_url=$API_URL" >> $GITHUB_OUTPUT
+          
+          echo "✅ Infrastructure deployment completed"
+          echo "📍 Resource Group: $RESOURCE_GROUP"
+          echo "🌐 API URL: $API_URL"
+
+  deploy-application:
+    name: Deploy Application
+    runs-on: ubuntu-latest
+    needs: [validate, build-and-push, deploy-infrastructure]
+    if: always() && needs.validate.outputs.should_deploy == 'true' && (needs.deploy-infrastructure.result == 'success' || needs.deploy-infrastructure.result == 'skipped')
+    environment:
+      name: ${{ needs.validate.outputs.target_environment }}
+      url: ${{ needs.deploy-infrastructure.outputs.api_url }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Update Container Apps
+        run: |
+          ENV="${{ needs.validate.outputs.target_environment }}"
+          RESOURCE_GROUP="${{ needs.deploy-infrastructure.outputs.resource_group }}"
+          
+          if [ -z "$RESOURCE_GROUP" ]; then
+            # Try to find existing resource group if infrastructure deployment was skipped
+            RESOURCE_GROUP=$(az group list --query "[?contains(name, 'rg-tripradar-$ENV')].name" -o tsv | head -1)
+          fi
+          
+          if [ -z "$RESOURCE_GROUP" ]; then
+            echo "❌ Could not determine resource group name"
+            exit 1
+          fi
+          
+          echo "📍 Using Resource Group: $RESOURCE_GROUP"
+          
+          # Find container apps
+          MAIN_API_APP=$(az containerapp list --resource-group $RESOURCE_GROUP --query "[?contains(name, 'api') && !contains(name, 'jobs')].name" -o tsv | head -1)
+          JOBS_API_APP=$(az containerapp list --resource-group $RESOURCE_GROUP --query "[?contains(name, 'jobs-api')].name" -o tsv | head -1)
+          
+          # Update Main API
+          if [ -n "$MAIN_API_APP" ]; then
+            echo "🔄 Updating Main API: $MAIN_API_APP"
+            az containerapp update \
+              --name $MAIN_API_APP \
+              --resource-group $RESOURCE_GROUP \
+              --image "${{ needs.build-and-push.outputs.api_image }}" \
+              --revision-suffix "$(date +%Y%m%d-%H%M%S)"
+            echo "✅ Main API updated successfully"
+          fi
+          
+          # Update Jobs API
+          if [ -n "$JOBS_API_APP" ]; then
+            echo "🔄 Updating Jobs API: $JOBS_API_APP"
+            az containerapp update \
+              --name $JOBS_API_APP \
+              --resource-group $RESOURCE_GROUP \
+              --image "${{ needs.build-and-push.outputs.jobs_image }}" \
+              --revision-suffix "$(date +%Y%m%d-%H%M%S)"
+            echo "✅ Jobs API updated successfully"
+          fi
+          
+          # Run database initialization
+          DB_JOB=$(az containerapp job list --resource-group $RESOURCE_GROUP --query "[?contains(name, 'db-init')].name" -o tsv | head -1)
+          if [ -n "$DB_JOB" ]; then
+            echo "🗄️ Running database initialization: $DB_JOB"
+            EXECUTION_NAME=$(az containerapp job start --name $DB_JOB --resource-group $RESOURCE_GROUP --query "name" -o tsv)
+            echo "📋 Database job execution started: $EXECUTION_NAME"
+            
+            # Wait for completion with timeout
+            TIMEOUT=300
+            ELAPSED=0
+            while [ $ELAPSED -lt $TIMEOUT ]; do
+              STATUS=$(az containerapp job execution show --name $EXECUTION_NAME --job-name $DB_JOB --resource-group $RESOURCE_GROUP --query "properties.status" -o tsv)
+              echo "⏱️ Database job status: $STATUS (${ELAPSED}s elapsed)"
+              
+              if [ "$STATUS" = "Succeeded" ]; then
+                echo "✅ Database initialization completed successfully"
+                break
+              elif [ "$STATUS" = "Failed" ]; then
+                echo "❌ Database initialization failed"
+                exit 1
+              fi
+              
+              sleep 10
+              ELAPSED=$((ELAPSED + 10))
+            done
+            
+            if [ $ELAPSED -ge $TIMEOUT ]; then
+              echo "⚠️ Database initialization timed out"
+            fi
+          fi
+
+      - name: Verify Deployment
+        run: |
+          ENV="${{ needs.validate.outputs.target_environment }}"
+          RESOURCE_GROUP="${{ needs.deploy-infrastructure.outputs.resource_group }}"
+          
+          if [ -z "$RESOURCE_GROUP" ]; then
+            RESOURCE_GROUP=$(az group list --query "[?contains(name, 'rg-tripradar-$ENV')].name" -o tsv | head -1)
+          fi
+          
+          MAIN_API_APP=$(az containerapp list --resource-group $RESOURCE_GROUP --query "[?contains(name, 'api') && !contains(name, 'jobs')].name" -o tsv | head -1)
+          
+          if [ -n "$MAIN_API_APP" ]; then
+            API_URL=$(az containerapp show --name $MAIN_API_APP --resource-group $RESOURCE_GROUP --query "properties.configuration.ingress.fqdn" -o tsv)
+            if [ -n "$API_URL" ]; then
+              API_URL="https://$API_URL"
+              echo "🌐 API URL: $API_URL"
+              
+              # Wait for app to be ready
+              echo "⏱️ Waiting for application to be ready..."
+              sleep 60
+              
+              # Test health endpoint
+              if curl -f -s "$API_URL/health" > /dev/null; then
+                echo "✅ Application health check passed"
+              else
+                echo "⚠️ Application health check failed (this may be normal for new deployments)"
+              fi
+            fi
+          fi
+
+  notify:
+    name: Deployment Notification
+    runs-on: ubuntu-latest
+    needs: [validate, build-and-push, deploy-infrastructure, deploy-application]
+    if: always() && needs.validate.outputs.should_deploy == 'true'
+    
+    steps:
+      - name: Deployment Summary
+        run: |
+          ENV="${{ needs.validate.outputs.target_environment }}"
+          echo "🎯 TripRadar Deployment Summary"
+          echo "Environment: $ENV"
+          echo "Build Status: ${{ needs.build-and-push.result }}"
+          echo "Infrastructure Status: ${{ needs.deploy-infrastructure.result }}"
+          echo "Application Status: ${{ needs.deploy-application.result }}"
+          
+          if [ "${{ needs.deploy-application.result }}" = "success" ]; then
+            echo "🎉 TripRadar deployment completed successfully!"
+          else
+            echo "❌ TripRadar deployment encountered issues"
+            exit 1
+          fi

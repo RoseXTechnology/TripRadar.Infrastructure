@@ -1,0 +1,111 @@
+# TripRadar Environment Variables Template
+# Copy this content to a .env file in your TripRadar solution root and fill in actual values
+# NEVER commit .env files to source control!
+
+# ==============================================
+# DATABASE CONFIGURATION
+# ==============================================
+DB_PASSWORD=your_secure_database_password
+ConnectionStrings__AppDb=Server=localhost;Port=5432;Database=TripRadarDb;User Id=postgres;Password=${DB_PASSWORD};Ssl Mode=Disable;
+
+# ==============================================
+# REDIS CONFIGURATION  
+# ==============================================
+ConnectionStrings__RedisConnection=localhost:6379
+
+# ==============================================
+# APPLICATION SECURITY
+# ==============================================
+JWT_KEY=your_jwt_signing_key_here
+API_KEY=your_api_key_here
+INTERNAL_API_KEY=your_internal_api_key_here
+APP_SECRET=your_app_secret_here
+
+# ==============================================
+# CORS CONFIGURATION
+# ==============================================
+CORS_ORIGINS=http://localhost:3000,https://localhost:3001
+
+# ==============================================
+# EXTERNAL API KEYS
+# ==============================================
+
+# SerpApi (Google Services Integration)
+SERP_API_KEY=your_serpapi_key_here
+
+# Stripe Payment Processing
+STRIPE_SECRET_KEY=sk_test_your_stripe_secret_key_here
+STRIPE_PUBLISHABLE_KEY=pk_test_your_stripe_publishable_key_here
+STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret_here
+
+# Stripe Product Price IDs
+STRIPE_BASIC_TIER_PRICE_ID=price_basic_monthly_id
+STRIPE_ESSENTIAL_TIER_PRICE_ID=price_essential_monthly_id
+STRIPE_ADVANCED_TIER_PRICE_ID=price_advanced_monthly_id
+STRIPE_BASIC_TIER_YEARLY_PRICE_ID=price_basic_yearly_id
+STRIPE_ESSENTIAL_TIER_YEARLY_PRICE_ID=price_essential_yearly_id
+STRIPE_ADVANCED_TIER_YEARLY_PRICE_ID=price_advanced_yearly_id
+
+# Weather Data
+OPENWEATHERMAP_API_KEY=your_openweathermap_api_key_here
+
+# EV Charging Stations
+OPENCHARGEMAP_API_KEY=your_openchargemap_api_key_here
+
+# Currency Exchange
+UNIRATE_API_KEY=your_unirate_api_key_here
+
+# Holiday Data
+CALENDARIFIC_API_KEY=your_calendarific_api_key_here
+
+# Points of Interest
+OPENTRIPMAP_API_KEY=your_opentripmap_api_key_here
+
+# Public Transport
+TRANSITLAND_API_KEY=your_transitland_api_key_here
+
+# ==============================================
+# GOOGLE OAUTH CONFIGURATION
+# ==============================================
+GOOGLE_CLIENT_ID=your_google_client_id_here
+GOOGLE_CLIENT_SECRET=your_google_client_secret_here
+
+# ==============================================
+# EMAIL SERVICE CONFIGURATION  
+# ==============================================
+EMAIL_API_TOKEN=your_email_api_token_here
+EMAIL_SENDER_EMAIL=noreply@yourdomain.com
+EMAIL_SENDER_NAME=TripRadar
+EMAIL_BASE_URL=https://yourdomain.com
+
+# ==============================================
+# FEATURE FLAGS (FLAGSMITH)
+# ==============================================
+FLAGSMITH_API_URL=https://api.flagsmith.com/api/v1/
+FLAGSMITH_ENVIRONMENT_KEY=your_flagsmith_environment_key_here
+
+# ==============================================
+# OBSERVABILITY CONFIGURATION
+# ==============================================
+
+# Application Insights (for Azure deployment)
+APPLICATIONINSIGHTS_CONNECTION_STRING=your_app_insights_connection_string
+
+# OpenTelemetry (for local development)
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
+OTEL_SERVICE_NAME=TripRadar.API
+OTEL_SERVICE_VERSION=1.0.0
+
+# Elasticsearch (for local development)
+ElasticConfiguration__Uri=http://localhost:9200
+
+# ==============================================
+# HANGFIRE CONFIGURATION (Jobs API)
+# ==============================================
+Hangfire__IsFullAccessModeEnabled=true
+
+# ==============================================
+# DEVELOPMENT ENVIRONMENT URLS
+# ==============================================
+ASPNETCORE_URLS=http://+:5330
+ASPNETCORE_ENVIRONMENT=Development

@@ -1,0 +1,40 @@
+{
+    "analyzers": {
+      "core": {
+        "verbose": false,
+        "enabled": true,
+        "rules": {
+          "admin-username-should-not-be-literal": {
+            "level": "warning" // Encourages using parameters for admin usernames instead of hardcoding them.
+          },
+          "no-hardcoded-env-urls": {
+            "level": "warning" // Avoids hardcoding environment URLs (e.g., management.azure.com).
+          },
+          "outputs-should-not-contain-secrets": {
+            "level": "error"   // Prevents accidentally exposing secrets in deployment outputs.
+          },
+          "secure-parameter-default": {
+            "level": "error"   // Ensures that parameters marked @secure() do not have a hardcoded default value.
+          },
+          "no-hardcoded-location": {
+            "level": "warning" // Aligns with the "Avoid Hardcoding Resource Locations" practice.
+          },
+          "no-unused-params": {
+            "level": "warning" // Helps keep your Bicep files clean by flagging unused parameters.
+          },
+          "no-unused-vars": {
+            "level": "warning" // Flags unused variables to reduce clutter.
+          },
+          "prefer-interpolation": {
+            "level": "warning" // Recommends using string interpolation ('${...}') instead of the concat() function for readability.
+          },
+          "simplify-interpolation": {
+            "level": "warning" // Suggests removing unnecessary interpolations for cleaner code.
+          },
+          "use-stable-vm-image": {
+              "level": "warning" // Warns against using 'latest' for VM images, which can cause unpredictable deployments.
+          }
+        }
+      }
+    }
+  }
