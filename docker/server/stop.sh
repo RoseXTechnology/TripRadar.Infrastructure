@@ -94,7 +94,7 @@ if docker-compose -f docker-compose.yml -f docker-compose.override.yml down; the
     echo
     
     # Optional: Stop Docker
-    read -t 10 -p "Do you want to stop Docker as well? (y/N): " STOP_DOCKER || true
+    read -r -t 10 -p "Do you want to stop Docker as well? (y/N): " STOP_DOCKER || true
     echo
     
     if [[ $STOP_DOCKER =~ ^[Yy]$ ]]; then

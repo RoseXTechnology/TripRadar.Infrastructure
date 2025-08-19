@@ -63,7 +63,7 @@ detect_os() {
 OS=$(detect_os)
 
 # Double confirmation for safety
-read -p "Are you ABSOLUTELY SURE you want to delete ALL data? (y/N): " CONFIRM
+read -r -p "Are you ABSOLUTELY SURE you want to delete ALL data? (y/N): " CONFIRM
 if [[ ! $CONFIRM =~ ^[Yy]$ ]]; then
     echo
     echo "[CANCEL] Clean operation cancelled."
@@ -72,7 +72,7 @@ if [[ ! $CONFIRM =~ ^[Yy]$ ]]; then
 fi
 
 echo
-read -p "Type 'DELETE ALL' to confirm: " CONFIRM_TEXT
+read -r -p "Type 'DELETE ALL' to confirm: " CONFIRM_TEXT
 if [[ "$CONFIRM_TEXT" != "DELETE ALL" ]]; then
     echo
     echo "[CANCEL] Clean operation cancelled."
@@ -169,7 +169,7 @@ fi
 
 # Optional: Clean up Docker system (GLOBAL)
 echo
-read -t 10 -p "Do you also want to remove ALL unused Docker data (global prune)? (y/N): " PRUNE_ALL || true
+read -r -t 10 -p "Do you also want to remove ALL unused Docker data (global prune)? (y/N): " PRUNE_ALL || true
 echo
 echo "[4/4] Cleaning Docker system..."
 if [[ $PRUNE_ALL =~ ^[Yy]$ ]]; then
@@ -182,7 +182,7 @@ fi
 
 # Remove .env file if requested
 echo
-read -t 10 -p "Do you also want to remove the .env configuration file? (y/N): " REMOVE_ENV || true
+read -r -t 10 -p "Do you also want to remove the .env configuration file? (y/N): " REMOVE_ENV || true
 echo
 
 if [[ $REMOVE_ENV =~ ^[Yy]$ ]]; then
