@@ -85,27 +85,16 @@ FLAGSMITH_API_URL=https://api.flagsmith.com/api/v1/
 FLAGSMITH_ENVIRONMENT_KEY=your_flagsmith_environment_key_here
 
 # ==============================================
-# OBSERVABILITY CONFIGURATION
-# ==============================================
-
-# Application Insights (for Azure deployment)
-APPLICATIONINSIGHTS_CONNECTION_STRING=your_app_insights_connection_string
-
-# OpenTelemetry (for local development)
-OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
-OTEL_SERVICE_NAME=TripRadar.API
-OTEL_SERVICE_VERSION=1.0.0
-
-# Elasticsearch (for local development)
-ElasticConfiguration__Uri=http://localhost:9200
-
-# ==============================================
-# HANGFIRE CONFIGURATION (Jobs API)
-# ==============================================
-Hangfire__IsFullAccessModeEnabled=true
-
-# ==============================================
 # DEVELOPMENT ENVIRONMENT URLS
 # ==============================================
 ASPNETCORE_URLS=http://+:5330
 ASPNETCORE_ENVIRONMENT=Development
+
+# ==============================================
+# DEVELOPMENT ENVIRONMENT URLS
+# ==============================================
+KEYCLOAK_AUTHORITY=http://keycloak:8080/realms/tripradar
+KEYCLOAK_AUDIENCE=tripradar-api
+KEYCLOAK_CLIENT_ID=tripradar-api
+KEYCLOAK_CLIENT_SECRET=tripradar-client-secret
+KEYCLOAK_REALM=tripradar

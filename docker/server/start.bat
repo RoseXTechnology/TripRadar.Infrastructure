@@ -5,7 +5,32 @@ echo    TripRadar Backend - Docker Startup
 echo ==========================================
 echo.
 
-cd /d "%~dp0..\.."
+:: Locate docker-compose directory (supports sibling TripRadar.Server)
+set "SCRIPT_DIR=%~dp0"
+set "CANDIDATE1=%SCRIPT_DIR%..\.."
+set "CANDIDATE2=%SCRIPT_DIR%..\..\..\TripRadar.Server"
+
+if defined TRIPRADAR_SERVER_DIR (
+    if exist "%TRIPRADAR_SERVER_DIR%\docker-compose.yml" (
+        set "COMPOSE_DIR=%TRIPRADAR_SERVER_DIR%"
+    )
+)
+
+if not defined COMPOSE_DIR if exist "%CANDIDATE1%\docker-compose.yml" set "COMPOSE_DIR=%CANDIDATE1%"
+if not defined COMPOSE_DIR if exist "%CANDIDATE2%\docker-compose.yml" set "COMPOSE_DIR=%CANDIDATE2%"
+
+if not defined COMPOSE_DIR (
+    echo [ERROR] Could not locate docker-compose.yml
+    echo [INFO] Checked:
+    echo     - %CANDIDATE1%
+    echo     - %CANDIDATE2%
+    if defined TRIPRADAR_SERVER_DIR echo     - %TRIPRADAR_SERVER_DIR%
+    echo [HINT] Set TRIPRADAR_SERVER_DIR env var to your TripRadar.Server path.
+    pause
+    exit /b 1
+)
+
+cd /d "%COMPOSE_DIR%"
 
 echo [1/5] Checking Docker installation...
 where docker >nul 2>&1

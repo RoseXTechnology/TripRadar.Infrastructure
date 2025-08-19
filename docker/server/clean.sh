@@ -8,21 +8,44 @@ echo "=========================================="
 echo
 echo "    !!!! DANGER ZONE !!!!"
 echo
-echo "This operation will DELETE:"
-echo "   [X] All Docker containers"
-echo "   [X] All Docker volumes"
-echo "   [X] All database data"
-echo "   [X] All Redis cache"
-echo "   [X] All logs and metrics"
-echo "   [X] All uploaded files"
+echo "This operation will DELETE (TripRadar only):"
+echo "   [X] TripRadar containers (from docker-compose)"
+echo "   [X] TripRadar volumes (data will be lost)"
+echo "   [X] Database data stored in TripRadar volumes"
+echo "   [X] Redis cache stored in TripRadar volumes"
+echo "   [X] Logs and metrics kept in TripRadar volumes"
+echo "   [X] Uploaded files kept in TripRadar volumes"
+echo
+echo "Optional: You can also remove ALL unused Docker data (images, containers, networks, volumes) across your machine."
 echo
 echo "This action is IRREVERSIBLE!"
 echo "=========================================="
 echo
 
-# Get the directory where this script is located and navigate to project root
+# Get the directory where this script is located
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
-cd "$SCRIPT_DIR/../.."
+
+# Locate docker-compose directory (supports sibling TripRadar.Server)
+CANDIDATE1="$SCRIPT_DIR/../.."
+CANDIDATE2="$SCRIPT_DIR/../../../TripRadar.Server"
+
+if [[ -n "$TRIPRADAR_SERVER_DIR" && -f "$TRIPRADAR_SERVER_DIR/docker-compose.yml" ]]; then
+    COMPOSE_DIR="$TRIPRADAR_SERVER_DIR"
+elif [[ -f "$CANDIDATE1/docker-compose.yml" ]]; then
+    COMPOSE_DIR="$CANDIDATE1"
+elif [[ -f "$CANDIDATE2/docker-compose.yml" ]]; then
+    COMPOSE_DIR="$CANDIDATE2"
+else
+    echo "[ERROR] Could not locate docker-compose.yml"
+    echo "[INFO] Checked:"
+    echo "  - $CANDIDATE1"
+    echo "  - $CANDIDATE2"
+    [[ -n "$TRIPRADAR_SERVER_DIR" ]] && echo "  - $TRIPRADAR_SERVER_DIR"
+    echo "[HINT] Set TRIPRADAR_SERVER_DIR to your TripRadar.Server path."
+    exit 1
+fi
+
+cd "$COMPOSE_DIR"
 
 # Function to detect OS
 detect_os() {
@@ -144,10 +167,18 @@ if [ -n "$(docker volume ls -q --filter 'name=trip-radar' 2>/dev/null)" ]; then
     docker volume ls -q --filter "name=trip-radar" | xargs -r docker volume rm -f 2>/dev/null || true
 fi
 
-# Clean up Docker system
+# Optional: Clean up Docker system (GLOBAL)
+echo
+read -t 10 -p "Do you also want to remove ALL unused Docker data (global prune)? (y/N): " PRUNE_ALL || true
 echo
 echo "[4/4] Cleaning Docker system..."
-docker system prune -af --volumes 2>/dev/null || true
+if [[ $PRUNE_ALL =~ ^[Yy]$ ]]; then
+    docker system prune -af --volumes 2>/dev/null || true
+    PRUNE_MSG="[OK] Docker system globally pruned"
+else
+    echo "[SKIP] Global Docker prune skipped."
+    PRUNE_MSG="[SKIP] Global prune skipped"
+fi
 
 # Remove .env file if requested
 echo
@@ -172,11 +203,11 @@ echo "---------"
 echo "[OK] All TripRadar containers removed"
 echo "[OK] All TripRadar volumes removed"
 echo "[OK] All cached data cleared"
-echo "[OK] Docker system pruned"
+echo "$PRUNE_MSG"
 echo
 echo "Next Steps:"
 echo "-----------"
-echo "1. Run ./docker/scripts/start.sh to create fresh containers"
+echo "1. Run ./docker/server/start.sh to create fresh containers"
 echo "2. Update .env file with your API keys"
 echo "3. Services will initialize with clean data"
 echo

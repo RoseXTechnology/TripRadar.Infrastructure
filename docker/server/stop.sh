@@ -7,9 +7,30 @@ echo "   TripRadar Backend - Docker Shutdown"
 echo "=========================================="
 echo
 
-# Get the directory where this script is located and navigate to project root
+# Get the directory where this script is located
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
-cd "$SCRIPT_DIR/../.."
+
+# Locate docker-compose directory (supports sibling TripRadar.Server)
+CANDIDATE1="$SCRIPT_DIR/../.."
+CANDIDATE2="$SCRIPT_DIR/../../../TripRadar.Server"
+
+if [[ -n "$TRIPRADAR_SERVER_DIR" && -f "$TRIPRADAR_SERVER_DIR/docker-compose.yml" ]]; then
+    COMPOSE_DIR="$TRIPRADAR_SERVER_DIR"
+elif [[ -f "$CANDIDATE1/docker-compose.yml" ]]; then
+    COMPOSE_DIR="$CANDIDATE1"
+elif [[ -f "$CANDIDATE2/docker-compose.yml" ]]; then
+    COMPOSE_DIR="$CANDIDATE2"
+else
+    echo "[ERROR] Could not locate docker-compose.yml"
+    echo "[INFO] Checked:"
+    echo "  - $CANDIDATE1"
+    echo "  - $CANDIDATE2"
+    [[ -n "$TRIPRADAR_SERVER_DIR" ]] && echo "  - $TRIPRADAR_SERVER_DIR"
+    echo "[HINT] Set TRIPRADAR_SERVER_DIR to your TripRadar.Server path."
+    exit 1
+fi
+
+cd "$COMPOSE_DIR"
 
 # Function to detect OS
 detect_os() {
@@ -68,8 +89,8 @@ if docker-compose -f docker-compose.yml -f docker-compose.override.yml down; the
     echo
     echo "Quick Actions:"
     echo "--------------"
-    echo "- Restart services: ./docker/scripts/start.sh"
-    echo "- Clean all data:   ./docker/scripts/clean.sh"
+    echo "- Restart services: ./docker/server/start.sh"
+    echo "- Clean all data:   ./docker/server/clean.sh"
     echo
     
     # Optional: Stop Docker

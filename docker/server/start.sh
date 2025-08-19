@@ -10,15 +10,27 @@ echo
 # Get the directory where this script is located
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 
-# Navigate to the project root folder (2 levels up from docker/scripts)
-cd "$SCRIPT_DIR/../.."
+# Locate docker-compose directory (supports sibling TripRadar.Server)
+CANDIDATE1="$SCRIPT_DIR/../.."
+CANDIDATE2="$SCRIPT_DIR/../../../TripRadar.Server"
 
-# === ADD THIS VERIFICATION BLOCK ===
-echo "✅ Script is now running in the project root directory:"
-pwd
-echo "🧐 Checking for docker-compose.yml..."
-ls -l docker-compose.yml
-# ===================================
+if [[ -n "$TRIPRADAR_SERVER_DIR" && -f "$TRIPRADAR_SERVER_DIR/docker-compose.yml" ]]; then
+    COMPOSE_DIR="$TRIPRADAR_SERVER_DIR"
+elif [[ -f "$CANDIDATE1/docker-compose.yml" ]]; then
+    COMPOSE_DIR="$CANDIDATE1"
+elif [[ -f "$CANDIDATE2/docker-compose.yml" ]]; then
+    COMPOSE_DIR="$CANDIDATE2"
+else
+    echo "[ERROR] Could not locate docker-compose.yml"
+    echo "[INFO] Checked:"
+    echo "  - $CANDIDATE1"
+    echo "  - $CANDIDATE2"
+    [[ -n "$TRIPRADAR_SERVER_DIR" ]] && echo "  - $TRIPRADAR_SERVER_DIR"
+    echo "[HINT] Set TRIPRADAR_SERVER_DIR to your TripRadar.Server path."
+    exit 1
+fi
+
+cd "$COMPOSE_DIR"
 echo
 
 # Function to detect OS
@@ -144,8 +156,8 @@ if docker-compose -f docker-compose.yml -f docker-compose.override.yml up -d --b
     echo "Quick Actions:"
     echo "--------------"
     echo "- View logs:        docker-compose logs -f [service-name]"
-    echo "- Stop services:    ./docker/scripts/stop.sh"
-    echo "- Clean all data:   ./docker/scripts/clean.sh"
+    echo "- Stop services:    ./docker/server/stop.sh"
+    echo "- Clean all data:   ./docker/server/clean.sh"
     echo
     echo "[TIP] Services may take 1-2 minutes to be fully ready."
     echo "[TIP] Check service health: docker-compose ps"

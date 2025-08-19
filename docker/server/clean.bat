@@ -7,13 +7,15 @@ echo ==========================================
 echo.
 echo    !!!! DANGER ZONE !!!!
 echo.
-echo This operation will DELETE:
-echo   [X] All Docker containers
-echo   [X] All Docker volumes
-echo   [X] All database data
-echo   [X] All Redis cache
-echo   [X] All logs and metrics
-echo   [X] All uploaded files
+echo This operation will DELETE (TripRadar only):
+echo   [X] TripRadar containers (from docker-compose)
+echo   [X] TripRadar volumes (data will be lost)
+echo   [X] Database data stored in TripRadar volumes
+echo   [X] Redis cache stored in TripRadar volumes
+echo   [X] Logs and metrics kept in TripRadar volumes
+echo   [X] Uploaded files kept in TripRadar volumes
+echo.
+echo Optional: You can also remove ALL unused Docker data (images, containers, networks, volumes) across your machine.
 echo.
 echo This action is IRREVERSIBLE!
 echo ==========================================
@@ -43,8 +45,32 @@ echo.
 echo [START] Beginning cleanup process...
 echo.
 
-:: Navigate to project root
-cd /d "%~dp0..\.."
+:: Locate docker-compose directory (supports sibling TripRadar.Server)
+set "SCRIPT_DIR=%~dp0"
+set "CANDIDATE1=%SCRIPT_DIR%..\.."
+set "CANDIDATE2=%SCRIPT_DIR%..\..\..\TripRadar.Server"
+    
+if defined TRIPRADAR_SERVER_DIR (
+    if exist "%TRIPRADAR_SERVER_DIR%\docker-compose.yml" (
+        set "COMPOSE_DIR=%TRIPRADAR_SERVER_DIR%"
+    )
+)
+    
+if not defined COMPOSE_DIR if exist "%CANDIDATE1%\docker-compose.yml" set "COMPOSE_DIR=%CANDIDATE1%"
+if not defined COMPOSE_DIR if exist "%CANDIDATE2%\docker-compose.yml" set "COMPOSE_DIR=%CANDIDATE2%"
+    
+if not defined COMPOSE_DIR (
+    echo [ERROR] Could not locate docker-compose.yml
+    echo [INFO] Checked:
+    echo     - %CANDIDATE1%
+    echo     - %CANDIDATE2%
+    if defined TRIPRADAR_SERVER_DIR echo     - %TRIPRADAR_SERVER_DIR%
+    echo [HINT] Set TRIPRADAR_SERVER_DIR env var to your TripRadar.Server path.
+    pause
+    exit /b 1
+)
+    
+cd /d "%COMPOSE_DIR%"
 
 :: Check if Docker is running
 echo [1/4] Checking Docker status...
@@ -120,10 +146,19 @@ if %ERRORLEVEL% NEQ 0 (
     )
 )
 
-:: Clean up Docker system
+:: Optional: Clean up Docker system (GLOBAL)
 echo.
-echo [4/4] Cleaning Docker system...
-docker system prune -af --volumes 2>nul
+choice /C YN /T 10 /D N /M "Do you also want to remove ALL unused Docker data (global prune)?"
+if !ERRORLEVEL! EQU 1 (
+    echo.
+    echo [4/4] Cleaning Docker system (GLOBAL)...
+    docker system prune -af --volumes 2>nul
+    set "PRUNE_MSG=[OK] Docker system globally pruned"
+ ) else (
+    echo.
+    echo [SKIP] Global Docker prune skipped.
+    set "PRUNE_MSG=[SKIP] Global prune skipped"
+ )
 
 :: Remove .env file if exists (optional)
 echo.
@@ -146,7 +181,7 @@ echo ---------
 echo [OK] All TripRadar containers removed
 echo [OK] All TripRadar volumes removed
 echo [OK] All cached data cleared
-echo [OK] Docker system pruned
+echo %PRUNE_MSG%
 echo.
 echo Next Steps:
 echo -----------
