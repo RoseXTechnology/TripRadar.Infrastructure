@@ -5,9 +5,9 @@ resource "azurerm_redis_cache" "redis" {
   location            = var.location
   resource_group_name = azurerm_resource_group.rg.name
 
-  capacity            = var.redis_capacity
-  family              = var.redis_family
-  sku_name            = var.redis_sku_name
+  capacity = var.redis_capacity
+  family   = var.redis_family
+  sku_name = var.redis_sku_name
 
   minimum_tls_version = "1.2"
   enable_non_ssl_port = false

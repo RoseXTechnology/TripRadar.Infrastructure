@@ -16,8 +16,8 @@ resource "azurerm_postgresql_flexible_server" "pg" {
 
   storage_mb = var.postgres_storage_mb
 
-  administrator_login          = var.postgres_administrator_login
-  administrator_password       = var.postgres_administrator_password != null ? var.postgres_administrator_password : random_password.pg_admin[0].result
+  administrator_login           = var.postgres_administrator_login
+  administrator_password        = var.postgres_administrator_password != null ? var.postgres_administrator_password : random_password.pg_admin[0].result
   public_network_access_enabled = var.postgres_public_network_access_enabled
 
   # Note: For private access, configure delegated subnet and private DNS zones.
