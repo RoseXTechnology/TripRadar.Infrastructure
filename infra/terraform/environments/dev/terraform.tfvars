@@ -11,6 +11,7 @@ tags = {
 enable_log_analytics             = true
 enable_app_insights              = true
 enable_container_app_environment = true
+enable_vnet                      = false # Disable VNet to avoid delegation conflicts
 
 # Optional resources (toggle on as needed)
 enable_acr = true
