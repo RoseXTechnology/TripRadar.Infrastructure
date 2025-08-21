@@ -1,0 +1,111 @@
+name: Reusable - Build and Push to ACR
+
+on:
+  workflow_call:
+    inputs:
+      acr_name:
+        description: 'Azure Container Registry name (e.g., myacr)'
+        required: true
+        type: string
+      repository:
+        description: 'ACR repository path (e.g., tripradar/api)'
+        required: true
+        type: string
+      context:
+        description: 'Docker build context (e.g., ./server/TripRadar.Server.API)'
+        required: true
+        type: string
+      dockerfile:
+        description: 'Path to Dockerfile'
+        required: true
+        type: string
+      tag:
+        description: 'Optional image tag. Defaults to the current commit SHA.'
+        required: false
+        type: string
+      platforms:
+        description: 'Optional build platforms (comma-separated). Default linux/amd64.'
+        required: false
+        type: string
+      build_args:
+        description: 'Optional build args (newline-separated KEY=VALUE)'
+        required: false
+        type: string
+    secrets:
+      AZURE_CLIENT_ID:
+        required: true
+      AZURE_TENANT_ID:
+        required: true
+      AZURE_SUBSCRIPTION_ID:
+        required: true
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    outputs:
+      image: ${{ steps.meta.outputs.image }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Get ACR login server
+        id: acr
+        shell: bash
+        run: |
+          LOGIN_SERVER=$(az acr show -n "${{ inputs.acr_name }}" --query loginServer -o tsv)
+          echo "login_server=$LOGIN_SERVER" >> "$GITHUB_OUTPUT"
+
+      - name: Azure ACR Login
+        shell: bash
+        run: |
+          az acr login -n "${{ inputs.acr_name }}"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Prepare image meta
+        id: meta
+        shell: bash
+        run: |
+          TAG="${{ inputs.tag }}"
+          if [ -z "$TAG" ]; then TAG="${GITHUB_SHA}"; fi
+          IMAGE="${{ steps.acr.outputs.login_server }}/${{ inputs.repository }}:${TAG}"
+          echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
+          # Convert build args from newline-separated to --build-arg flags
+          if [ -n "${{ inputs.build_args }}" ]; then
+            echo "args<<EOF" >> $GITHUB_OUTPUT
+            while IFS= read -r line; do
+              [ -z "$line" ] && continue
+              echo "--build-arg $line" >> $GITHUB_OUTPUT
+            done <<< "${{ inputs.build_args }}"
+            echo "EOF" >> $GITHUB_OUTPUT
+          fi
+          PLATFORMS="${{ inputs.platforms }}"
+          if [ -z "$PLATFORMS" ]; then PLATFORMS="linux/amd64"; fi
+          echo "platforms=$PLATFORMS" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ inputs.context }}
+          file: ${{ inputs.dockerfile }}
+          push: true
+          platforms: ${{ steps.meta.outputs.platforms }}
+          tags: ${{ steps.meta.outputs.image }}
+          provenance: false
+          sbom: false
+          build-args: |
+            ${{ inputs.build_args }}
+
+      - name: Output image
+        run: echo "Built and pushed ${{ steps.meta.outputs.image }}"
