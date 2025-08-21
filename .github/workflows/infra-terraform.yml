@@ -177,6 +177,15 @@ jobs:
         with:
           terraform_wrapper: false
 
+      - name: Debug - Validate module path from TF working dir
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          echo "PWD: $(pwd)"
+          echo "Listing here:" && ls -la
+          echo "Listing ../..:" && ls -la ../../ || true
+          echo "Listing ../../modules:" && ls -la ../../modules || true
+          echo "Listing ../../modules/container_app:" && ls -la ../../modules/container_app || true
+
       - name: Terraform Init (backend)
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: |
