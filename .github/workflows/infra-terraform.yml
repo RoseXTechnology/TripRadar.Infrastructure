@@ -5,7 +5,8 @@ on:
     paths:
       - 'infra/terraform/**'
   push:
-    branches: [ dev, main ]
+    branches: 
+      - development
     paths:
       - 'infra/terraform/**'
   workflow_dispatch:
@@ -16,6 +17,11 @@ on:
         default: 'dev'
         type: choice
         options: [dev, prod]
+      ref:
+        description: 'Git ref (branch or tag) to checkout (e.g., dev, main)'
+        required: false
+        default: 'dev'
+        type: string
       api_image:
         description: 'Optional: Full image ref for API (e.g., myacr.azurecr.io/tripradar/api:sha)'
         required: false
@@ -155,6 +161,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
 
       - name: Debug - List directory structure
         run: |
