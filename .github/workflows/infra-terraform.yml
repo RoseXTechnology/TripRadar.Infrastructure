@@ -186,6 +186,19 @@ jobs:
         with:
           terraform_wrapper: false
 
+      - name: Validate backend secrets
+        run: |
+          set -euo pipefail
+          RG="${{ secrets.TFSTATE_RG }}"
+          SA="${{ secrets.TFSTATE_SA }}"
+          CT="${{ secrets.TFSTATE_CONTAINER }}"
+          missing=0
+          if [ -z "$RG" ]; then echo "Missing secret: TFSTATE_RG"; missing=1; fi
+          if [ -z "$SA" ]; then echo "Missing secret: TFSTATE_SA"; missing=1; fi
+          if [ -z "$CT" ]; then echo "Missing secret: TFSTATE_CONTAINER"; missing=1; fi
+          if [ "$missing" -ne 0 ]; then echo "One or more backend secrets are missing. Set them at repository or environment (dev/prod) level."; exit 1; fi
+          echo "Backend secrets present."
+
       - name: Debug - Validate module path from TF working dir
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: |
