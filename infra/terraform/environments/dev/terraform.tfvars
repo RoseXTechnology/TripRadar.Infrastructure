@@ -17,7 +17,7 @@ enable_acr = true
 acr_name   = "tripradardevacr"
 
 enable_key_vault = true
-key_vault_name   = null # If null, name defaults to "tripradar-dev-kv"; ensure global uniqueness before apply
+key_vault_name   = "tripradar-dev-kv-8715" # Globally unique name for Key Vault
 
 # --- Optional: Libby Container App (disabled by default) ---
 # enable_libby           = true
