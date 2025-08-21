@@ -156,6 +156,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Debug - List directory structure
+        run: |
+          echo "Current directory: $(pwd)"
+          echo "Repository structure:"
+          find . -type d -name "modules" -o -name "terraform" | head -20
+          echo "Terraform modules directory:"
+          ls -la infra/terraform/ || echo "infra/terraform not found"
+          ls -la infra/terraform/modules/ || echo "modules directory not found"
+
       - name: Azure Login (OIDC)
         uses: azure/login@v2
         with:
