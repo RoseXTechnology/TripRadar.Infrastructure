@@ -3,7 +3,7 @@ data "azurerm_client_config" "current" {}
 resource "azurerm_resource_group" "rg" {
   name     = "${var.project}-${var.environment}-rg"
   location = var.location
-  tags     = merge(var.tags, { Environment = var.environment, Project = var.project })
+  tags     = merge(var.tags, { Environment = var.environment, Project = var.project, "azd-env-name" = var.environment })
 }
 
 # Log Analytics Workspace (optional)
@@ -35,7 +35,9 @@ resource "azurerm_container_app_environment" "cae" {
   location                   = var.location
   resource_group_name        = azurerm_resource_group.rg.name
   log_analytics_workspace_id = var.enable_log_analytics ? azurerm_log_analytics_workspace.law[0].id : null
-  tags                       = merge(var.tags, { Environment = var.environment, Project = var.project })
+  # Optional VNet integration; requires subnet delegation to Microsoft.App
+  infrastructure_subnet_id = var.enable_vnet ? try(azurerm_subnet.subnet_cae[0].id, null) : null
+  tags                     = merge(var.tags, { Environment = var.environment, Project = var.project })
 }
 
 # Azure Container Registry (optional)
@@ -44,7 +46,7 @@ resource "azurerm_container_registry" "acr" {
   name                = coalesce(var.acr_name, replace(lower("${var.project}${var.environment}acr"), "-", ""))
   location            = var.location
   resource_group_name = azurerm_resource_group.rg.name
-  sku                 = "Basic"
+  sku                 = "Standard"
   admin_enabled       = false
   tags                = merge(var.tags, { Environment = var.environment, Project = var.project })
 }
@@ -60,6 +62,7 @@ resource "azurerm_key_vault" "kv" {
   purge_protection_enabled      = true
   soft_delete_retention_days    = 7
   enable_rbac_authorization     = true
-  public_network_access_enabled = true
+  public_network_access_enabled = var.key_vault_public_network_access_enabled
   tags                          = merge(var.tags, { Environment = var.environment, Project = var.project })
 }
+

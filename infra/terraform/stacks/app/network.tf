@@ -14,6 +14,19 @@ resource "azurerm_subnet" "subnet_cae" {
   resource_group_name  = azurerm_resource_group.rg.name
   virtual_network_name = azurerm_virtual_network.vnet[0].name
   address_prefixes     = [var.subnet_cae_cidr]
+
+  delegation {
+    name = "delegation"
+
+    service_delegation {
+      name = "Microsoft.App/environments"
+      actions = [
+        "Microsoft.Network/virtualNetworks/subnets/join/action",
+        "Microsoft.Network/virtualNetworks/subnets/prepareNetworkPolicies/action",
+        "Microsoft.Network/virtualNetworks/subnets/unprepareNetworkPolicies/action",
+      ]
+    }
+  }
 }
 
 resource "azurerm_subnet" "subnet_data" {
@@ -23,3 +36,4 @@ resource "azurerm_subnet" "subnet_data" {
   virtual_network_name = azurerm_virtual_network.vnet[0].name
   address_prefixes     = [var.subnet_data_cidr]
 }
+

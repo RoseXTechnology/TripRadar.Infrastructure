@@ -47,3 +47,11 @@ resource "azurerm_role_assignment" "libby_kv_secrets_user" {
   role_definition_name = "Key Vault Secrets User"
   principal_id         = azurerm_user_assigned_identity.libby.principal_id
 }
+
+## Optional: Grant deployer ability to write secrets to Key Vault
+resource "azurerm_role_assignment" "deployer_kv_secrets_officer" {
+  count                = var.enable_key_vault && var.deployer_object_id != null ? 1 : 0
+  scope                = azurerm_key_vault.kv[0].id
+  role_definition_name = "Key Vault Secrets Officer"
+  principal_id         = var.deployer_object_id
+}
