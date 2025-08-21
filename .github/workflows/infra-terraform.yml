@@ -18,9 +18,9 @@ on:
         type: choice
         options: [dev, prod]
       ref:
-        description: 'Git ref (branch or tag) to checkout (e.g., dev, main)'
+        description: 'Git ref (branch or tag) to checkout (e.g., main)'
         required: false
-        default: 'dev'
+        default: 'main'
         type: string
       api_image:
         description: 'Optional: Full image ref for API (e.g., myacr.azurecr.io/tripradar/api:sha)'
