@@ -1,7 +1,7 @@
 # Prod environment variables for TripRadar Terraform stack
 project     = "tripradar"
 environment = "prod"
-location    = "eastus"
+location    = "northeurope"
 
 tags = {
   Owner = "TripRadar"
