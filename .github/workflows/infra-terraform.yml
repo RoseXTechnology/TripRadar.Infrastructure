@@ -5,8 +5,9 @@ on:
     paths:
       - 'infra/terraform/**'
   push:
-    branches: 
+    branches:
       - development
+      - main
     paths:
       - 'infra/terraform/**'
   workflow_dispatch:
@@ -18,9 +19,9 @@ on:
         type: choice
         options: [dev, prod]
       ref:
-        description: 'Git ref (branch or tag) to checkout (e.g., main)'
+        description: 'Git ref (branch or tag) to checkout (e.g., development)'
         required: false
-        default: 'main'
+        default: 'development'
         type: string
       api_image:
         description: 'Optional: Full image ref for API (e.g., myacr.azurecr.io/tripradar/api:sha)'
@@ -89,7 +90,7 @@ jobs:
         run: terraform plan -var-file=../../environments/dev/terraform.tfvars
 
   apply-dev:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/development'
     runs-on: ubuntu-latest
     environment: dev
     steps:
@@ -216,4 +217,5 @@ jobs:
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: |
           TFVARS="../../environments/${{ inputs.environment }}/terraform.tfvars"
-          terraform apply -auto-approve -var-file=$TFVARS
+          echo "Using tfvars: $TFVARS"
+          terraform apply -auto-approve -var-file="$TFVARS"
