@@ -20,6 +20,8 @@ enable_key_vault = true
 key_vault_name   = "tripradar-dev-kv-8715" # Globally unique name for Key Vault
 write_secrets_to_key_vault = false # Disable to avoid count dependency issues
 
+subnet_cae_cidr = "10.100.0.0/23" # CAE requires at least /23
+
 # --- Optional: Libby Container App (disabled by default) ---
 # enable_libby           = true
 # libby_port             = 8080
