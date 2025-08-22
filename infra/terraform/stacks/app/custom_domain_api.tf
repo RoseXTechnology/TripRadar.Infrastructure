@@ -22,9 +22,10 @@ data "azapi_resource" "api_app" {
 }
 
 resource "azapi_update_resource" "api_custom_domain_unmanaged" {
-  count       = local.api_custom_domain_enabled ? 1 : 0
-  type        = "Microsoft.App/containerApps@2024-03-01"
-  resource_id = module.ca_api[0].id
+  count                   = local.api_custom_domain_enabled ? 1 : 0
+  type                    = "Microsoft.App/containerApps@2024-03-01"
+  resource_id             = module.ca_api[0].id
+  ignore_missing_property = false
 
   body = {
     properties = {
@@ -70,9 +71,10 @@ resource "azapi_resource" "api_managed_cert" {
 
 # Bind custom domain to API app using the managed certificate
 resource "azapi_update_resource" "api_custom_domain_bind" {
-  count       = local.api_custom_domain_enabled ? 1 : 0
-  type        = "Microsoft.App/containerApps@2024-03-01"
-  resource_id = module.ca_api[0].id
+  count                   = local.api_custom_domain_enabled ? 1 : 0
+  type                    = "Microsoft.App/containerApps@2024-03-01"
+  resource_id             = module.ca_api[0].id
+  ignore_missing_property = false
 
   body = {
     properties = {
