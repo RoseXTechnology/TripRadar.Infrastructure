@@ -25,6 +25,7 @@ resource "azapi_update_resource" "api_custom_domain_unmanaged" {
   count       = local.api_custom_domain_enabled ? 1 : 0
   type        = "Microsoft.App/containerApps@2024-03-01"
   resource_id = module.ca_api[0].id
+  method      = "PATCH"
 
   body = {
     properties = {
@@ -40,6 +41,11 @@ resource "azapi_update_resource" "api_custom_domain_unmanaged" {
       }
     }
   }
+
+  # Ensure the Container App resource (and its secrets) are fully applied first
+  depends_on = [
+    module.ca_api,
+  ]
 }
 
 # Managed certificate in the Container Apps Environment
@@ -68,6 +74,7 @@ resource "azapi_update_resource" "api_custom_domain_bind" {
   count       = local.api_custom_domain_enabled ? 1 : 0
   type        = "Microsoft.App/containerApps@2024-03-01"
   resource_id = module.ca_api[0].id
+  method      = "PATCH"
 
   body = {
     properties = {
@@ -87,5 +94,6 @@ resource "azapi_update_resource" "api_custom_domain_bind" {
 
   depends_on = [
     azapi_resource.api_managed_cert,
+    module.ca_api,
   ]
 }
