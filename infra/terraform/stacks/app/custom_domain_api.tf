@@ -32,8 +32,8 @@ resource "azapi_update_resource" "api_custom_domain_unmanaged" {
         ingress = {
           customDomains = [
             {
-              name                    = var.api_custom_domain
-              certificateBindingType  = "Disabled"
+              name        = var.api_custom_domain
+              bindingType = "Disabled"
             }
           ]
         }
@@ -75,9 +75,9 @@ resource "azapi_update_resource" "api_custom_domain_bind" {
         ingress = {
           customDomains = [
             {
-              name                    = var.api_custom_domain
-              certificateBindingType  = "SniEnabled"
-              certificateId           = azapi_resource.api_managed_cert[0].id
+              name          = var.api_custom_domain
+              bindingType   = "SniEnabled"
+              certificateId = azapi_resource.api_managed_cert[0].id
             }
           ]
         }
