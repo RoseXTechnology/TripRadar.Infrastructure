@@ -1,17 +1,14 @@
-# Custom domain and managed certificate for API Container App
+# Custom domain configuration (temporarily disabled due to azapi_update_resource issues with secrets)
+# TODO: Re-enable after resolving azapi compatibility with Container App secrets
 
 locals {
-  api_custom_domain_enabled = var.enable_container_app_environment && var.api_ingress_external && var.api_custom_domain != null
+  api_custom_domain_enabled = false # Temporarily disabled
+  # api_custom_domain_enabled = var.enable_container_app_environment && var.api_ingress_external && var.api_custom_domain != null
 }
 
-# Read Container App to get verification code and FQDN
-# Using AzAPI data source to fetch properties not exposed by azurerm
-# - properties.customDomainVerificationId
-# - properties.configuration.ingress.fqdn
-# Docs: https://learn.microsoft.com/azure/templates/microsoft.app/containerapps
-
+# Read Container App to get verification code and FQDN for manual domain setup
 data "azapi_resource" "api_app" {
-  count       = local.api_custom_domain_enabled ? 1 : 0
+  count       = var.enable_container_app_environment ? 1 : 0
   type        = "Microsoft.App/containerApps@2024-03-01"
   resource_id = module.ca_api[0].id
 
@@ -21,79 +18,5 @@ data "azapi_resource" "api_app" {
   ]
 }
 
-resource "azapi_update_resource" "api_custom_domain_unmanaged" {
-  count                   = local.api_custom_domain_enabled ? 1 : 0
-  type                    = "Microsoft.App/containerApps@2024-03-01"
-  resource_id             = module.ca_api[0].id
-  ignore_missing_property = false
-
-  body = {
-    properties = {
-      configuration = {
-        ingress = {
-          customDomains = [
-            {
-              name        = var.api_custom_domain
-              bindingType = "Disabled"
-            }
-          ]
-        }
-      }
-    }
-  }
-
-  # Ensure the Container App resource (and its secrets) are fully applied first
-  depends_on = [
-    module.ca_api,
-  ]
-}
-
-# Managed certificate in the Container Apps Environment
-# Docs: https://learn.microsoft.com/azure/templates/microsoft.app/managedenvironments/managedcertificates
-resource "azapi_resource" "api_managed_cert" {
-  count     = local.api_custom_domain_enabled ? 1 : 0
-  type      = "Microsoft.App/managedEnvironments/managedCertificates@2024-03-01"
-  name      = replace(var.api_custom_domain, ".", "-")
-  parent_id = azurerm_container_app_environment.cae[0].id
-  location  = var.location
-
-  body = {
-    properties = {
-      subjectName             = var.api_custom_domain
-      domainControlValidation = "CNAME"
-    }
-  }
-
-  depends_on = [
-    azapi_update_resource.api_custom_domain_unmanaged,
-  ]
-}
-
-# Bind custom domain to API app using the managed certificate
-resource "azapi_update_resource" "api_custom_domain_bind" {
-  count                   = local.api_custom_domain_enabled ? 1 : 0
-  type                    = "Microsoft.App/containerApps@2024-03-01"
-  resource_id             = module.ca_api[0].id
-  ignore_missing_property = false
-
-  body = {
-    properties = {
-      configuration = {
-        ingress = {
-          customDomains = [
-            {
-              name          = var.api_custom_domain
-              bindingType   = "SniEnabled"
-              certificateId = azapi_resource.api_managed_cert[0].id
-            }
-          ]
-        }
-      }
-    }
-  }
-
-  depends_on = [
-    azapi_resource.api_managed_cert,
-    module.ca_api,
-  ]
-}
+# Note: Custom domain resources commented out due to azapi_update_resource incompatibility
+# Use Azure CLI after deployment: az containerapp hostname add --hostname api.dev.tripradar.io --name tripradar-dev-api --resource-group tripradar-dev-rg
