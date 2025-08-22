@@ -4,7 +4,7 @@ locals {
   kv_postgres_secret_id = var.enable_key_vault && var.write_secrets_to_key_vault && var.enable_postgres && length(azurerm_key_vault_secret.postgres_connection_string) > 0 ? azurerm_key_vault_secret.postgres_connection_string[0].id : null
   kv_redis_secret_id    = var.enable_key_vault && var.write_secrets_to_key_vault && var.enable_redis && length(azurerm_key_vault_secret.redis_connection_string) > 0 ? azurerm_key_vault_secret.redis_connection_string[0].id : null
   kv_appi_secret_id     = var.enable_key_vault && var.write_secrets_to_key_vault && var.enable_app_insights && length(azurerm_key_vault_secret.app_insights_connection_string) > 0 ? azurerm_key_vault_secret.app_insights_connection_string[0].id : null
-  appi_conn_string      = try(azurerm_application_insights.appi[0].connection_string, null)
+  appi_conn_string      = var.enable_app_insights && length(azurerm_application_insights.appi) > 0 ? azurerm_application_insights.appi[0].connection_string : null
 }
 
 module "ca_api" {
