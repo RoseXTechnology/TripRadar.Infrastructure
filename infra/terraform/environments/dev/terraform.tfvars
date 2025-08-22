@@ -21,6 +21,9 @@ enable_key_vault = true
 key_vault_name   = "tripradar-dev-kv-8715" # Globally unique name for Key Vault
 write_secrets_to_key_vault = false # Disable to avoid count dependency issues
 
+# Database configuration
+enable_postgres = true
+
 api_image  = "tripradardevacr.azurecr.io/tripradar/api:4a098b6f6ef40c909ad152634657cbcb715f0245"
 jobs_image = "tripradardevacr.azurecr.io/tripradar/jobs:4a098b6f6ef40c909ad152634657cbcb715f0245"
 
