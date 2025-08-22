@@ -81,12 +81,3 @@ output "jobs_url" {
   description = "Jobs base URL (only if external ingress enabled)"
 }
 
-output "libby_fqdn" {
-  value       = try(module.ca_libby[0].fqdn, null)
-  description = "Libby Container App FQDN (only if enabled and external ingress)"
-}
-
-output "libby_url" {
-  value       = try(format("https://%s", module.ca_libby[0].fqdn), null)
-  description = "Libby base URL (only if enabled and external ingress)"
-}

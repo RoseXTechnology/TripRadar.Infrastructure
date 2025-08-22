@@ -24,10 +24,3 @@ module "diag_jobs" {
   log_analytics_workspace_id = azurerm_log_analytics_workspace.law[0].id
 }
 
-module "diag_libby" {
-  count                      = var.enable_log_analytics && var.enable_container_app_environment && var.enable_libby ? 1 : 0
-  source                     = "../../modules/observability/diagnostic_setting"
-  name                       = "${var.project}-${var.environment}-libby-diag"
-  target_resource_id         = module.ca_libby[0].id
-  log_analytics_workspace_id = azurerm_log_analytics_workspace.law[0].id
-}

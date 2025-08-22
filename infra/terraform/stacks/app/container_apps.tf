@@ -58,28 +58,3 @@ module "ca_jobs" {
   tags                = merge(var.tags, { Environment = var.environment, Project = var.project, "azd-service-name" = "jobs" })
 }
 
-module "ca_libby" {
-  count               = var.enable_container_app_environment && var.enable_libby ? 1 : 0
-  source              = "../../modules/container_app"
-  name                = "${var.project}-${var.environment}-libby"
-  resource_group_name = azurerm_resource_group.rg.name
-  environment_id      = azurerm_container_app_environment.cae[0].id
-  identity_id         = azurerm_user_assigned_identity.libby.id
-  enable_acr          = var.enable_acr
-  acr_server          = try(azurerm_container_registry.acr[0].login_server, null)
-  image               = coalesce(var.libby_image, "mcr.microsoft.com/dotnet/samples:aspnetapp")
-  container_name      = "libby"
-  port                = var.libby_port
-  ingress_external    = var.libby_ingress_external
-  min_replicas        = var.libby_min_replicas
-  max_replicas        = var.libby_max_replicas
-  cpu                 = 0.25
-  memory              = "0.5Gi"
-  appdb_secret_id     = local.kv_postgres_secret_id
-  appdb_conn_fallback = var.enable_postgres && local.kv_postgres_secret_id == null ? local.postgres_connection_string : null
-  redis_secret_id     = local.kv_redis_secret_id
-  redis_conn_fallback = var.enable_redis && local.kv_redis_secret_id == null ? local.redis_connection_string : null
-  appi_secret_id      = local.kv_appi_secret_id
-  appi_conn_fallback  = local.kv_appi_secret_id == null && local.appi_conn_string != null ? local.appi_conn_string : null
-  tags                = merge(var.tags, { Environment = var.environment, Project = var.project })
-}

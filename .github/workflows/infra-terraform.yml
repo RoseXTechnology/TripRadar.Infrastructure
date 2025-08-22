@@ -31,10 +31,6 @@ on:
         description: 'Optional: Full image ref for Jobs (e.g., myacr.azurecr.io/tripradar/jobs:sha)'
         required: false
         type: string
-      libby_image:
-        description: 'Optional: Full image ref for Libby (e.g., myacr.azurecr.io/tripradar/libby:sha)'
-        required: false
-        type: string
 
 permissions:
   id-token: write
@@ -247,11 +243,10 @@ jobs:
             -backend-config="key=$KEY"
 
       - name: Prepare TF VARs (images)
-        if: ${{ inputs.api_image != '' || inputs.jobs_image != '' || inputs.libby_image != '' }}
+        if: ${{ inputs.api_image != '' || inputs.jobs_image != '' }}
         run: |
           if [ "${{ inputs.api_image }}" != "" ]; then echo "TF_VAR_api_image=${{ inputs.api_image }}" >> $GITHUB_ENV; fi
           if [ "${{ inputs.jobs_image }}" != "" ]; then echo "TF_VAR_jobs_image=${{ inputs.jobs_image }}" >> $GITHUB_ENV; fi
-          if [ "${{ inputs.libby_image }}" != "" ]; then echo "TF_VAR_libby_image=${{ inputs.libby_image }}" >> $GITHUB_ENV; fi
         shell: bash
 
       - name: Terraform Apply
