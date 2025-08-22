@@ -89,12 +89,12 @@ output "api_custom_domain_hostname" {
 }
 
 output "api_custom_domain_cname_target" {
-  value       = try(jsondecode(data.azapi_resource.api_app[0].output).properties.configuration.ingress.fqdn, null)
+  value       = try(data.azapi_resource.api_app[0].output.properties.configuration.ingress.fqdn, null)
   description = "CNAME target (the generated Container App FQDN)"
 }
 
 output "api_custom_domain_verification_id" {
-  value       = try(jsondecode(data.azapi_resource.api_app[0].output).properties.customDomainVerificationId, null)
+  value       = try(data.azapi_resource.api_app[0].output.properties.customDomainVerificationId, null)
   description = "TXT record value for asuid.<subdomain> to validate domain ownership"
 }
 
