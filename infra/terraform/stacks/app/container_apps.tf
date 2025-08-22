@@ -28,7 +28,7 @@ module "ca_api" {
   redis_secret_id          = local.kv_redis_secret_id
   redis_conn_fallback      = var.enable_redis && local.kv_redis_secret_id == null ? local.redis_connection_string : null
   appi_secret_id           = local.kv_appi_secret_id
-  appi_conn_fallback       = local.kv_appi_secret_id == null && local.appi_conn_string != null ? local.appi_conn_string : null
+  appi_conn_fallback       = local.kv_appi_secret_id == null && local.appi_conn_string != null && local.appi_conn_string != "" ? local.appi_conn_string : null
   tags                     = merge(var.tags, { Environment = var.environment, Project = var.project, "azd-service-name" = "api" })
 }
 
@@ -54,7 +54,7 @@ module "ca_jobs" {
   redis_secret_id     = local.kv_redis_secret_id
   redis_conn_fallback = var.enable_redis && local.kv_redis_secret_id == null ? local.redis_connection_string : null
   appi_secret_id      = local.kv_appi_secret_id
-  appi_conn_fallback  = local.kv_appi_secret_id == null && local.appi_conn_string != null ? local.appi_conn_string : null
+  appi_conn_fallback  = local.kv_appi_secret_id == null && local.appi_conn_string != null && local.appi_conn_string != "" ? local.appi_conn_string : null
   tags                = merge(var.tags, { Environment = var.environment, Project = var.project, "azd-service-name" = "jobs" })
 }
 

@@ -158,12 +158,12 @@ resource "azurerm_container_app" "this" {
   }
 
   dynamic "secret" {
-    for_each = (var.appi_secret_id != null || (var.appi_conn_fallback != null && coalesce(var.appi_conn_fallback, "") != "")) ? [1] : []
+    for_each = (var.appi_secret_id != null && var.appi_secret_id != "") || (var.appi_conn_fallback != null && var.appi_conn_fallback != "" && coalesce(var.appi_conn_fallback, "") != "") ? [1] : []
     content {
       name                = "appi-conn"
-      key_vault_secret_id = var.appi_secret_id
-      identity            = var.appi_secret_id != null ? var.identity_id : null
-      value               = var.appi_secret_id == null && var.appi_conn_fallback != null && coalesce(var.appi_conn_fallback, "") != "" ? var.appi_conn_fallback : null
+      key_vault_secret_id = var.appi_secret_id != null && var.appi_secret_id != "" ? var.appi_secret_id : null
+      identity            = var.appi_secret_id != null && var.appi_secret_id != "" ? var.identity_id : null
+      value               = var.appi_secret_id == null || var.appi_secret_id == "" ? (var.appi_conn_fallback != null && var.appi_conn_fallback != "" && coalesce(var.appi_conn_fallback, "") != "" ? var.appi_conn_fallback : null) : null
     }
   }
 
@@ -204,11 +204,11 @@ resource "azurerm_container_app" "this" {
 
       # Application Insights connection string via KV secret or fallback value (only if provided)
       dynamic "env" {
-        for_each = (var.appi_secret_id != null || (var.appi_conn_fallback != null && coalesce(var.appi_conn_fallback, "") != "")) ? [1] : []
+        for_each = (var.appi_secret_id != null && var.appi_secret_id != "") || (var.appi_conn_fallback != null && var.appi_conn_fallback != "" && coalesce(var.appi_conn_fallback, "") != "") ? [1] : []
         content {
           name        = "APPLICATIONINSIGHTS_CONNECTION_STRING"
-          secret_name = var.appi_secret_id != null ? "appi-conn" : null
-          value       = var.appi_secret_id == null && var.appi_conn_fallback != null && coalesce(var.appi_conn_fallback, "") != "" ? var.appi_conn_fallback : null
+          secret_name = (var.appi_secret_id != null && var.appi_secret_id != "") ? "appi-conn" : null
+          value       = var.appi_secret_id == null || var.appi_secret_id == "" ? (var.appi_conn_fallback != null && var.appi_conn_fallback != "" && coalesce(var.appi_conn_fallback, "") != "" ? var.appi_conn_fallback : null) : null
         }
       }
 

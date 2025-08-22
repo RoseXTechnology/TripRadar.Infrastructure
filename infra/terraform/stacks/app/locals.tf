@@ -8,4 +8,6 @@ locals {
   redis_connection_string = var.enable_redis ? (
     "rediss://:${azurerm_redis_cache.redis[0].primary_access_key}@${azurerm_redis_cache.redis[0].hostname}:6380/0"
   ) : null
+
+  appi_conn_string = var.enable_app_insights && length(azurerm_application_insights.appi) > 0 ? azurerm_application_insights.appi[0].connection_string : null
 }
