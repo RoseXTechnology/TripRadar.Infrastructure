@@ -113,3 +113,10 @@ variable "enable_http_scaling_patch" {
   type        = bool
   default     = false
 }
+
+# Custom domain for API (public)
+variable "api_custom_domain" {
+  description = "Optional custom domain hostname for the API (e.g., api.dev.tripradar.io). Requires external ingress and DNS records."
+  type        = string
+  default     = null
+}
