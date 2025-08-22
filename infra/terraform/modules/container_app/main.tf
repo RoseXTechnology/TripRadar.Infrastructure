@@ -162,7 +162,7 @@ resource "azurerm_container_app" "this" {
     content {
       name                = "appi-conn"
       key_vault_secret_id = var.appi_secret_id != null && var.appi_secret_id != "" ? var.appi_secret_id : null
-      identity            = (var.appi_secret_id != null && var.appi_secret_id != "") ? var.identity_id : null
+      identity            = var.appi_secret_id != null && var.appi_secret_id != "" ? var.identity_id : null
       value               = (var.appi_secret_id == null || var.appi_secret_id == "") && (var.appi_conn_fallback != null && var.appi_conn_fallback != "" && coalesce(var.appi_conn_fallback, "") != "") ? var.appi_conn_fallback : null
     }
   }
