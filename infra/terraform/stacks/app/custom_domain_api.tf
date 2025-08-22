@@ -33,7 +33,7 @@ resource "azapi_update_resource" "api_custom_domain_unmanaged" {
           customDomains = [
             {
               name        = var.api_custom_domain
-              bindingType = "Unmanaged"
+              bindingType = "Disabled"
             }
           ]
         }
@@ -76,7 +76,7 @@ resource "azapi_update_resource" "api_custom_domain_bind" {
           customDomains = [
             {
               name          = var.api_custom_domain
-              bindingType   = "Managed"
+              bindingType   = "SniEnabled"
               certificateId = azapi_resource.api_managed_cert[0].id
             }
           ]
