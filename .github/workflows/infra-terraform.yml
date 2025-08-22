@@ -132,6 +132,18 @@ jobs:
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: terraform apply -auto-approve -var-file=../../environments/dev/terraform.tfvars
 
+      - name: Show Terraform outputs (dev)
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          echo "Terraform Outputs:" >> $GITHUB_STEP_SUMMARY
+          terraform output | tee -a $GITHUB_STEP_SUMMARY
+          API_URL=$(terraform output -raw api_url 2>/dev/null || true)
+          if [ -n "$API_URL" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "API URL: $API_URL" >> $GITHUB_STEP_SUMMARY
+            echo "Open: $API_URL"
+          fi
+
   apply-prod:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
@@ -171,6 +183,18 @@ jobs:
       - name: Terraform Apply (prod)
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: terraform apply -auto-approve -var-file=../../environments/prod/terraform.tfvars
+
+      - name: Show Terraform outputs (prod)
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          echo "Terraform Outputs:" >> $GITHUB_STEP_SUMMARY
+          terraform output | tee -a $GITHUB_STEP_SUMMARY
+          API_URL=$(terraform output -raw api_url 2>/dev/null || true)
+          if [ -n "$API_URL" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "API URL: $API_URL" >> $GITHUB_STEP_SUMMARY
+            echo "Open: $API_URL"
+          fi
 
   apply-manual:
     if: github.event_name == 'workflow_dispatch'
@@ -255,3 +279,16 @@ jobs:
           TFVARS="../../environments/${{ inputs.environment }}/terraform.tfvars"
           echo "Using tfvars: $TFVARS"
           terraform apply -auto-approve -var-file="$TFVARS"
+
+      - name: Show Terraform outputs (manual)
+        if: ${{ success() }}
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          echo "Terraform Outputs:" >> $GITHUB_STEP_SUMMARY
+          terraform output | tee -a $GITHUB_STEP_SUMMARY
+          API_URL=$(terraform output -raw api_url 2>/dev/null || true)
+          if [ -n "$API_URL" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "API URL: $API_URL" >> $GITHUB_STEP_SUMMARY
+            echo "Open: $API_URL"
+          fi
