@@ -21,6 +21,27 @@ data "azapi_resource" "api_app" {
   ]
 }
 
+resource "azapi_update_resource" "api_custom_domain_unmanaged" {
+  count       = local.api_custom_domain_enabled ? 1 : 0
+  type        = "Microsoft.App/containerApps@2024-03-01"
+  resource_id = module.ca_api[0].id
+
+  body = {
+    properties = {
+      configuration = {
+        ingress = {
+          customDomains = [
+            {
+              name        = var.api_custom_domain
+              bindingType = "Unmanaged"
+            }
+          ]
+        }
+      }
+    }
+  }
+}
+
 # Managed certificate in the Container Apps Environment
 # Docs: https://learn.microsoft.com/azure/templates/microsoft.app/managedenvironments/managedcertificates
 resource "azapi_resource" "api_managed_cert" {
@@ -36,6 +57,10 @@ resource "azapi_resource" "api_managed_cert" {
       domainControlValidation = "CNAME"
     }
   }
+
+  depends_on = [
+    azapi_update_resource.api_custom_domain_unmanaged,
+  ]
 }
 
 # Bind custom domain to API app using the managed certificate
