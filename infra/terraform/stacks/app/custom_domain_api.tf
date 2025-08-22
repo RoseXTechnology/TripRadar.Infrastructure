@@ -30,12 +30,12 @@ resource "azapi_resource" "api_managed_cert" {
   parent_id = azurerm_container_app_environment.cae[0].id
   location  = var.location
 
-  body = jsonencode({
+  body = {
     properties = {
-      subjectName            = var.api_custom_domain
+      subjectName             = var.api_custom_domain
       domainControlValidation = "CNAME"
     }
-  })
+  }
 }
 
 # Bind custom domain to API app using the managed certificate
@@ -44,7 +44,7 @@ resource "azapi_update_resource" "api_custom_domain_bind" {
   type        = "Microsoft.App/containerApps@2024-03-01"
   resource_id = module.ca_api[0].id
 
-  body = jsonencode({
+  body = {
     properties = {
       configuration = {
         ingress = {
@@ -58,7 +58,7 @@ resource "azapi_update_resource" "api_custom_domain_bind" {
         }
       }
     }
-  })
+  }
 
   depends_on = [
     azapi_resource.api_managed_cert,
