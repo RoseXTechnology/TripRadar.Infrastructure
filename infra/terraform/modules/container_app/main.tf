@@ -182,25 +182,34 @@ resource "azurerm_container_app" "this" {
         value = "http://0.0.0.0:${var.port}"
       }
 
-      # AppDb connection string via KV secret or fallback value
-      env {
-        name        = "ConnectionStrings__AppDb"
-        secret_name = var.appdb_secret_id != null ? "appdb-conn" : null
-        value       = var.appdb_secret_id == null ? var.appdb_conn_fallback : null
+      # AppDb connection string via KV secret or fallback value (only if provided)
+      dynamic "env" {
+        for_each = (var.appdb_secret_id != null || var.appdb_conn_fallback != null) ? [1] : []
+        content {
+          name        = "ConnectionStrings__AppDb"
+          secret_name = var.appdb_secret_id != null ? "appdb-conn" : null
+          value       = var.appdb_secret_id == null ? var.appdb_conn_fallback : null
+        }
       }
 
-      # Redis connection string via KV secret or fallback value
-      env {
-        name        = "ConnectionStrings__RedisConnection"
-        secret_name = var.redis_secret_id != null ? "redis-conn" : null
-        value       = var.redis_secret_id == null ? var.redis_conn_fallback : null
+      # Redis connection string via KV secret or fallback value (only if provided)
+      dynamic "env" {
+        for_each = (var.redis_secret_id != null || var.redis_conn_fallback != null) ? [1] : []
+        content {
+          name        = "ConnectionStrings__RedisConnection"
+          secret_name = var.redis_secret_id != null ? "redis-conn" : null
+          value       = var.redis_secret_id == null ? var.redis_conn_fallback : null
+        }
       }
 
-      # Application Insights connection string via KV secret or fallback value
-      env {
-        name        = "APPLICATIONINSIGHTS_CONNECTION_STRING"
-        secret_name = var.appi_secret_id != null ? "appi-conn" : null
-        value       = var.appi_secret_id == null ? var.appi_conn_fallback : null
+      # Application Insights connection string via KV secret or fallback value (only if provided)
+      dynamic "env" {
+        for_each = (var.appi_secret_id != null || var.appi_conn_fallback != null) ? [1] : []
+        content {
+          name        = "APPLICATIONINSIGHTS_CONNECTION_STRING"
+          secret_name = var.appi_secret_id != null ? "appi-conn" : null
+          value       = var.appi_secret_id == null ? var.appi_conn_fallback : null
+        }
       }
 
       liveness_probe {
