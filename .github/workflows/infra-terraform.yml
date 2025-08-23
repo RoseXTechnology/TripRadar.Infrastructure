@@ -128,6 +128,24 @@ jobs:
             -backend-config="container_name=${{ secrets.TFSTATE_CONTAINER }}" \
             -backend-config="key=tripradar-dev.tfstate"
 
+      - name: Idempotent import of existing Resource Group (dev)
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ADDR="azurerm_resource_group.rg"
+          RG_NAME="tripradar-dev-rg"
+          if terraform state list | grep -q "^$ADDR$"; then
+            echo "RG already in state — skipping import"
+            exit 0
+          fi
+          if az group show -n "$RG_NAME" >/dev/null 2>&1; then
+            echo "Importing existing RG into state..."
+            terraform import "$ADDR" "/subscriptions/${ARM_SUBSCRIPTION_ID}/resourceGroups/${RG_NAME}" || true
+          else
+            echo "RG not found in Azure — skipping import"
+          fi
+
       - name: Terraform Apply (dev)
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: terraform apply -auto-approve -var-file=../../environments/dev/terraform.tfvars
@@ -247,15 +265,6 @@ jobs:
           if [ "$missing" -ne 0 ]; then echo "One or more backend secrets are missing. Set them at repository or environment (dev/prod) level."; exit 1; fi
           echo "Backend secrets present."
 
-      - name: Debug - Validate module path from TF working dir
-        working-directory: ${{ env.TF_WORKING_DIR }}
-        run: |
-          echo "PWD: $(pwd)"
-          echo "Listing here:" && ls -la
-          echo "Listing ../..:" && ls -la ../../ || true
-          echo "Listing ../../modules:" && ls -la ../../modules || true
-          echo "Listing ../../modules/container_app:" && ls -la ../../modules/container_app || true
-
       - name: Terraform Init (backend)
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: |
@@ -265,6 +274,25 @@ jobs:
             -backend-config="storage_account_name=${{ secrets.TFSTATE_SA }}" \
             -backend-config="container_name=${{ secrets.TFSTATE_CONTAINER }}" \
             -backend-config="key=$KEY"
+
+      - name: Idempotent import of existing Resource Group (manual dev)
+        if: ${{ inputs.environment == 'dev' }}
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ADDR="azurerm_resource_group.rg"
+          RG_NAME="tripradar-dev-rg"
+          if terraform state list | grep -q "^$ADDR$"; then
+            echo "RG already in state — skipping import"
+            exit 0
+          fi
+          if az group show -n "$RG_NAME" >/dev/null 2>&1; then
+            echo "Importing existing RG into state..."
+            terraform import "$ADDR" "/subscriptions/${ARM_SUBSCRIPTION_ID}/resourceGroups/${RG_NAME}" || true
+          else
+            echo "RG not found in Azure — skipping import"
+          fi
 
       - name: Prepare TF VARs (images)
         if: ${{ inputs.api_image != '' || inputs.jobs_image != '' }}
