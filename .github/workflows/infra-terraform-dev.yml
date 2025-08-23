@@ -44,16 +44,19 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # Prefer the currently logged-in Azure context
-          SUBS=$(az account show --query id -o tsv || true)
-          # Fallback to explicit secret
+          echo "Determining subscription id..."
+          SUBS=$(az account show --query id -o tsv 2>/dev/null || true)
+          echo "az account show -> '${SUBS:-}'" || true
           if [ -z "${SUBS}" ] || [ "${SUBS}" = "null" ]; then
             SUBS="${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+            echo "from secret AZURE_SUBSCRIPTION_ID -> '${SUBS:-}'" || true
           fi
-          # Fallback to parsing AZURE_CREDENTIALS JSON if provided
           if [ -z "${SUBS}" ] || [ "${SUBS}" = "null" ]; then
             if [ -n "${{ secrets.AZURE_CREDENTIALS }}" ] && [ "${{ secrets.AZURE_CREDENTIALS }}" != "null" ]; then
-              SUBS=$(jq -r '.subscriptionId // ""' <<< '${{ secrets.AZURE_CREDENTIALS }}')
+              # parse creds json; tolerate jq errors
+              TMP=$(jq -r '.subscriptionId // ""' <<< '${{ secrets.AZURE_CREDENTIALS }}' 2>/dev/null || true)
+              SUBS=${SUBS:-$TMP}
+              echo "from AZURE_CREDENTIALS json -> '${TMP:-}'" || true
             fi
           fi
           if [ -z "${SUBS}" ] || [ "${SUBS}" = "null" ]; then
