@@ -79,3 +79,13 @@ logs/
 
 # Environment
 .env
+
+# Terraform
+**/.terraform/
+**/.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+.terraformrc
+terraform.rc
+*.tfplan
+*.tfplan.*

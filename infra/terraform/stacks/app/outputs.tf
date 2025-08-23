@@ -1,3 +1,4 @@
+
 output "resource_group_name" {
   value       = azurerm_resource_group.rg.name
   description = "Resource Group name"
@@ -96,5 +97,22 @@ output "api_custom_domain_cname_target" {
 output "api_custom_domain_verification_id" {
   value       = try(data.azapi_resource.api_app[0].output.properties.customDomainVerificationId, null)
   description = "TXT record value for asuid.<subdomain> to validate domain ownership"
+}
+
+output "dns_records_required" {
+  description = "DNS records required for custom domain configuration - Copy these to your DNS provider"
+  value = local.api_custom_domain_enabled ? {
+    txt_record = {
+      name        = "asuid.${var.api_custom_domain}"
+      value       = try(jsondecode(data.azapi_resource.api_app[0].output).properties.customDomainVerificationId, null)
+      description = "Required for domain verification"
+    }
+    cname_record = {
+      name        = var.api_custom_domain
+      value       = try(jsondecode(data.azapi_resource.api_app[0].output).properties.configuration.ingress.fqdn, module.ca_api[0].fqdn)
+      description = "Points custom domain to Container App"
+    }
+    instructions = "1. Add the TXT record first, 2. Wait for DNS propagation (5-15 min), 3. Add the CNAME record, 4. Run 'terraform apply' to complete setup"
+  } : null
 }
 
