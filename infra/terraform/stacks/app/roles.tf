@@ -16,6 +16,14 @@ resource "azurerm_role_assignment" "jobs_acr_pull" {
   principal_id         = azurerm_user_assigned_identity.jobs.principal_id
 }
 
+# ACR pull permissions for DB MI
+resource "azurerm_role_assignment" "db_acr_pull" {
+  count                = var.enable_acr ? 1 : 0
+  scope                = azurerm_container_registry.acr[0].id
+  role_definition_name = "AcrPull"
+  principal_id         = azurerm_user_assigned_identity.db.principal_id
+}
+
 
 # Key Vault secrets read for API MI (only if KV enabled)
 resource "azurerm_role_assignment" "api_kv_secrets_user" {

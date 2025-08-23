@@ -58,3 +58,95 @@ module "ca_jobs" {
   tags                = merge(var.tags, { Environment = var.environment, Project = var.project, "azd-service-name" = "jobs" })
 }
 
+# Database initialization job
+resource "azurerm_container_app_job" "db_init" {
+  count                        = var.enable_container_app_environment && var.enable_postgres ? 1 : 0
+  name                         = "${var.project}-${var.environment}-db-init"
+  location                     = var.location
+  resource_group_name          = azurerm_resource_group.rg.name
+  container_app_environment_id = azurerm_container_app_environment.cae[0].id
+
+  replica_timeout_in_seconds = 3600
+  replica_retry_limit        = 1
+
+  manual_trigger_config {
+    parallelism              = 1
+    replica_completion_count = 1
+  }
+
+  template {
+    container {
+      name   = "db-init"
+      image  = coalesce(var.db_image, "mcr.microsoft.com/dotnet/runtime:8.0")
+      cpu    = 0.25
+      memory = "0.5Gi"
+
+      dynamic "env" {
+        for_each = var.enable_postgres && local.kv_postgres_secret_id != null ? [1] : []
+        content {
+          name        = "ConnectionStrings__AppDb"
+          secret_name = "appdb-conn"
+        }
+      }
+
+      dynamic "env" {
+        for_each = var.enable_postgres && local.kv_postgres_secret_id == null ? [1] : []
+        content {
+          name  = "ConnectionStrings__AppDb"
+          value = local.postgres_connection_string
+        }
+      }
+
+      env {
+        name  = "DOTNET_ENVIRONMENT"
+        value = "Development"
+      }
+    }
+  }
+
+  dynamic "secret" {
+    for_each = var.enable_postgres && local.kv_postgres_secret_id != null ? [1] : []
+    content {
+      name                = "appdb-conn"
+      key_vault_secret_id = local.kv_postgres_secret_id
+      identity            = azurerm_user_assigned_identity.db.id
+    }
+  }
+
+  identity {
+    type         = "UserAssigned"
+    identity_ids = [azurerm_user_assigned_identity.db.id]
+  }
+
+  dynamic "registry" {
+    for_each = var.enable_acr ? [1] : []
+    content {
+      server   = azurerm_container_registry.acr[0].login_server
+      identity = azurerm_user_assigned_identity.db.id
+    }
+  }
+
+  tags = merge(var.tags, { Environment = var.environment, Project = var.project, "azd-service-name" = "db-init" })
+}
+
+# Automatically execute database initialization job after creation
+resource "null_resource" "db_init_execution" {
+  count = var.enable_container_app_environment && var.enable_postgres ? 1 : 0
+
+  provisioner "local-exec" {
+    command = "az containerapp job start --name ${azurerm_container_app_job.db_init[0].name} --resource-group ${azurerm_resource_group.rg.name}"
+  }
+
+  depends_on = [
+    azurerm_container_app_job.db_init,
+    azurerm_role_assignment.db_acr_pull,
+    azurerm_postgresql_flexible_server.pg,
+    azurerm_postgresql_flexible_server_database.tripradar
+  ]
+
+  triggers = {
+    job_id  = azurerm_container_app_job.db_init[0].id
+    db_image = var.db_image
+  }
+}
+

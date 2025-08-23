@@ -12,6 +12,12 @@ variable "jobs_image" {
   default     = null
 }
 
+variable "db_image" {
+  description = "Full image reference for Database initialization (e.g., myregistry.azurecr.io/tripradar/db:sha)"
+  type        = string
+  default     = null
+}
+
 variable "api_port" {
   description = "API container listening port"
   type        = number

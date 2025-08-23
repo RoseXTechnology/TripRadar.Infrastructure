@@ -26,6 +26,7 @@ enable_postgres = true
 
 api_image  = "tripradardevacr.azurecr.io/tripradar/api:4a098b6f6ef40c909ad152634657cbcb715f0245"
 jobs_image = "tripradardevacr.azurecr.io/tripradar/jobs:4a098b6f6ef40c909ad152634657cbcb715f0245"
+db_image   = "tripradardevacr.azurecr.io/tripradar/db:4a098b6f6ef40c909ad152634657cbcb715f0245"
 
 # Custom domain for API (public)
 api_custom_domain = "api.dev.tripradar.io"

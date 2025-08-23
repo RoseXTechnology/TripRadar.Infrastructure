@@ -26,3 +26,12 @@ resource "azurerm_postgresql_flexible_server" "pg" {
 
   tags = merge(var.tags, { Environment = var.environment, Project = var.project })
 }
+
+# Create the application database
+resource "azurerm_postgresql_flexible_server_database" "tripradar" {
+  count     = var.enable_postgres ? 1 : 0
+  name      = var.postgres_database_name
+  server_id = azurerm_postgresql_flexible_server.pg[0].id
+  collation = "en_US.utf8"
+  charset   = "utf8"
+}
