@@ -44,18 +44,28 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          SUBS="${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+          # Prefer the currently logged-in Azure context
+          SUBS=$(az account show --query id -o tsv || true)
+          # Fallback to explicit secret
+          if [ -z "${SUBS}" ] || [ "${SUBS}" = "null" ]; then
+            SUBS="${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+          fi
+          # Fallback to parsing AZURE_CREDENTIALS JSON if provided
           if [ -z "${SUBS}" ] || [ "${SUBS}" = "null" ]; then
             if [ -n "${{ secrets.AZURE_CREDENTIALS }}" ] && [ "${{ secrets.AZURE_CREDENTIALS }}" != "null" ]; then
-              SUBS=$(jq -r '.subscriptionId' <<< '${{ secrets.AZURE_CREDENTIALS }}')
+              SUBS=$(python3 - <<'PY'
+import json, os
+creds=os.environ.get('AZC','')
+try:
+  print(json.loads(creds).get('subscriptionId',''))
+except Exception:
+  pass
+PY
+AZC='${{ secrets.AZURE_CREDENTIALS }}')
             fi
           fi
           if [ -z "${SUBS}" ] || [ "${SUBS}" = "null" ]; then
-            # fallback to current account
-            SUBS=$(az account show --query id -o tsv || true)
-          fi
-          if [ -z "${SUBS}" ] || [ "${SUBS}" = "null" ]; then
-            echo "Failed to determine Subscription ID" >&2
+            echo "Failed to determine Subscription ID from az context or secrets" >&2
             exit 1
           fi
           echo "SUBSCRIPTION_ID=$SUBS" >> "$GITHUB_ENV"
@@ -73,7 +83,6 @@ jobs:
           set -euo pipefail
           echo "Azure CLI version: $(az version --query 'azure-cli' -o tsv 2>/dev/null || echo unknown)"
           echo "Account info:" && az account show -o table || true
-          # enforce login present
           if ! az account show >/dev/null 2>&1; then
             echo "Azure login validation failed. Ensure AZURE_CREDENTIALS or OIDC secrets are configured with proper permissions." >&2
             exit 1
