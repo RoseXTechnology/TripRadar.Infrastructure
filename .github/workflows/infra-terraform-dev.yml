@@ -47,39 +47,37 @@ jobs:
           echo "Determining subscription id..."
           echo "Login conclusions: creds=${{ steps.azlogin_creds.conclusion }}; oidc=${{ steps.azlogin_oidc.conclusion }}"
 
-          # Try current context
-          SUBS=$(az account show --query id -o tsv 2>/dev/null || true)
-          echo "az account show -> '${SUBS:-}'"
+          # 1) Prefer explicit secret
+          SUBS="${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+          echo "from secret AZURE_SUBSCRIPTION_ID -> '${SUBS:-}'"
 
-          # Try default subscription from account list
+          # 2) Parse AZURE_CREDENTIALS JSON
+          if [ -z "${SUBS}" ] || [ "${SUBS}" = "null" ]; then
+            if [ -n "${{ secrets.AZURE_CREDENTIALS }}" ] && [ "${{ secrets.AZURE_CREDENTIALS }}" != "null" ]; then
+              TMP=$(jq -r '.subscriptionId // ""' <<< '${{ secrets.AZURE_CREDENTIALS }}' 2>/dev/null || true)
+              SUBS=${TMP:-$SUBS}
+              echo "from AZURE_CREDENTIALS json -> '${TMP:-}'"
+            fi
+          fi
+
+          # 3) Use current az context
+          if [ -z "${SUBS}" ] || [ "${SUBS}" = "null" ]; then
+            SUBS=$(az account show --query id -o tsv 2>/dev/null || true)
+            echo "az account show -> '${SUBS:-}'"
+          fi
+
+          # 4) Try default/first from account list
           if [ -z "${SUBS}" ] || [ "${SUBS}" = "null" ]; then
             SUBS=$(az account list --query "[?isDefault].id | [0]" -o tsv 2>/dev/null || true)
             echo "az account list (default) -> '${SUBS:-}'"
           fi
-
-          # Try first subscription from account list
           if [ -z "${SUBS}" ] || [ "${SUBS}" = "null" ]; then
             SUBS=$(az account list --query "[0].id" -o tsv 2>/dev/null || true)
             echo "az account list (first) -> '${SUBS:-}'"
           fi
 
-          # Fallback to explicit secret
           if [ -z "${SUBS}" ] || [ "${SUBS}" = "null" ]; then
-            SUBS="${{ secrets.AZURE_SUBSCRIPTION_ID }}"
-            echo "from secret AZURE_SUBSCRIPTION_ID -> '${SUBS:-}'"
-          fi
-
-          # Fallback to parsing AZURE_CREDENTIALS JSON if provided
-          if [ -z "${SUBS}" ] || [ "${SUBS}" = "null" ]; then
-            if [ -n "${{ secrets.AZURE_CREDENTIALS }}" ] && [ "${{ secrets.AZURE_CREDENTIALS }}" != "null" ]; then
-              TMP=$(jq -r '.subscriptionId // ""' <<< '${{ secrets.AZURE_CREDENTIALS }}' 2>/dev/null || true)
-              SUBS=${SUBS:-$TMP}
-              echo "from AZURE_CREDENTIALS json -> '${TMP:-}'"
-            fi
-          fi
-
-          if [ -z "${SUBS}" ] || [ "${SUBS}" = "null" ]; then
-            echo "Failed to determine Subscription ID from az context or secrets" >&2
+            echo "Failed to determine Subscription ID from secrets or az context" >&2
             echo "Debug: az account list raw:" >&2
             az account list -o table || true
             exit 1
