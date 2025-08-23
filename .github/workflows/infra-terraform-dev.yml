@@ -22,17 +22,86 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Azure Login
+      - name: Azure Login using AZURE_CREDENTIALS
+        id: azlogin_creds
         uses: azure/login@v2
+        continue-on-error: true
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Extract Subscription ID
+      - name: Azure Login using OIDC (fallback)
+        id: azlogin_oidc
+        if: steps.azlogin_creds.conclusion == 'failure'
+        uses: azure/login@v2
+        continue-on-error: true
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Determine Subscription ID
         id: sub
         shell: bash
         run: |
-          SUBS=$(jq -r '.subscriptionId' <<< '${{ secrets.AZURE_CREDENTIALS }}')
+          set -euo pipefail
+          echo "Determining subscription id..."
+          echo "Login conclusions: creds=${{ steps.azlogin_creds.conclusion }}; oidc=${{ steps.azlogin_oidc.conclusion }}"
+
+          # 1) Prefer explicit secret
+          SUBS="${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+          echo "from secret AZURE_SUBSCRIPTION_ID -> '${SUBS:-}'"
+
+          # 2) Parse AZURE_CREDENTIALS JSON
+          if [ -z "${SUBS}" ] || [ "${SUBS}" = "null" ]; then
+            if [ -n "${{ secrets.AZURE_CREDENTIALS }}" ] && [ "${{ secrets.AZURE_CREDENTIALS }}" != "null" ]; then
+              TMP=$(jq -r '.subscriptionId // ""' <<< '${{ secrets.AZURE_CREDENTIALS }}' 2>/dev/null || true)
+              SUBS=${TMP:-$SUBS}
+              echo "from AZURE_CREDENTIALS json -> '${TMP:-}'"
+            fi
+          fi
+
+          # 3) Use current az context
+          if [ -z "${SUBS}" ] || [ "${SUBS}" = "null" ]; then
+            SUBS=$(az account show --query id -o tsv 2>/dev/null || true)
+            echo "az account show -> '${SUBS:-}'"
+          fi
+
+          # 4) Try default/first from account list
+          if [ -z "${SUBS}" ] || [ "${SUBS}" = "null" ]; then
+            SUBS=$(az account list --query "[?isDefault].id | [0]" -o tsv 2>/dev/null || true)
+            echo "az account list (default) -> '${SUBS:-}'"
+          fi
+          if [ -z "${SUBS}" ] || [ "${SUBS}" = "null" ]; then
+            SUBS=$(az account list --query "[0].id" -o tsv 2>/dev/null || true)
+            echo "az account list (first) -> '${SUBS:-}'"
+          fi
+
+          if [ -z "${SUBS}" ] || [ "${SUBS}" = "null" ]; then
+            echo "Failed to determine Subscription ID from secrets or az context" >&2
+            echo "Debug: az account list raw:" >&2
+            az account list -o table || true
+            exit 1
+          fi
           echo "SUBSCRIPTION_ID=$SUBS" >> "$GITHUB_ENV"
+
+      - name: Set Azure subscription
+        shell: bash
+        run: |
+          set -euo pipefail
+          az account set --subscription "$SUBSCRIPTION_ID"
+          echo "Active subscription set to: $(az account show --query id -o tsv)"
+
+      - name: Validate Azure Login
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Azure CLI version: $(az version --query 'azure-cli' -o tsv 2>/dev/null || echo unknown)"
+          echo "Account info:" && az account show -o table || true
+          if ! az account show >/dev/null 2>&1; then
+            echo "Azure login validation failed. Ensure AZURE_CREDENTIALS or OIDC secrets are configured with proper permissions." >&2
+            exit 1
+          fi
+          echo "Logged in. Tenant: $(az account show --query tenantId -o tsv), Sub: $(az account show --query id -o tsv)"
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
