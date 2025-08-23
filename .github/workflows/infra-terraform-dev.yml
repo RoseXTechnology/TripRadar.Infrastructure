@@ -53,15 +53,7 @@ jobs:
           # Fallback to parsing AZURE_CREDENTIALS JSON if provided
           if [ -z "${SUBS}" ] || [ "${SUBS}" = "null" ]; then
             if [ -n "${{ secrets.AZURE_CREDENTIALS }}" ] && [ "${{ secrets.AZURE_CREDENTIALS }}" != "null" ]; then
-              SUBS=$(python3 - <<'PY'
-import json, os
-creds=os.environ.get('AZC','')
-try:
-  print(json.loads(creds).get('subscriptionId',''))
-except Exception:
-  pass
-PY
-AZC='${{ secrets.AZURE_CREDENTIALS }}')
+              SUBS=$(jq -r '.subscriptionId // ""' <<< '${{ secrets.AZURE_CREDENTIALS }}')
             fi
           fi
           if [ -z "${SUBS}" ] || [ "${SUBS}" = "null" ]; then
