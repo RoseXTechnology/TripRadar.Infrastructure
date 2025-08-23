@@ -112,7 +112,7 @@ output "dns_records_required" {
       value       = try(jsondecode(data.azapi_resource.api_app[0].output).properties.configuration.ingress.fqdn, module.ca_api[0].fqdn)
       description = "Points custom domain to Container App"
     }
-    instructions = "1. Add the TXT record first, 2. Wait for DNS propagation (5-15 min), 3. Add the CNAME record, 4. Run 'terraform apply' to complete setup"
+    instructions = "1. Add the TXT record first, 2. Wait for DNS propagation (5-15 min), 3. Add the CNAME record, 4. Run 'terraform apply' to complete automated SSL setup"
   } : null
 }
 
