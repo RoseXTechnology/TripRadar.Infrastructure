@@ -22,16 +22,53 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Azure Login
+      - name: Azure Login using AZURE_CREDENTIALS
+        id: azlogin_creds
         uses: azure/login@v2
+        continue-on-error: true
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Azure Login using OIDC (fallback)
+        id: azlogin_oidc
+        if: steps.azlogin_creds.outcome == 'failure'
+        uses: azure/login@v2
+        continue-on-error: true
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Validate Azure Login
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! az account show >/dev/null 2>&1; then
+            echo "Azure login failed: ensure AZURE_CREDENTIALS or OIDC secrets (AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID) are configured" >&2
+            exit 1
+          fi
+          echo "Logged into Azure tenant: $(az account show --query tenantId -o tsv)"
 
       - name: Extract Subscription ID
         id: sub
         shell: bash
         run: |
-          SUBS=$(jq -r '.subscriptionId' <<< '${{ secrets.AZURE_CREDENTIALS }}')
+          set -euo pipefail
+          SUBS="${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+          if [ -z "$SUBS" ] || [ "$SUBS" = "null" ]; then
+            # Try to parse from AZURE_CREDENTIALS JSON if present
+            if [ -n "${{ secrets.AZURE_CREDENTIALS }}" ] && [ "${{ secrets.AZURE_CREDENTIALS }}" != "null" ]; then
+              SUBS=$(jq -r '.subscriptionId' <<< '${{ secrets.AZURE_CREDENTIALS }}')
+            fi
+          fi
+          # As a final fallback, read from current az context
+          if [ -z "$SUBS" ] || [ "$SUBS" = "null" ]; then
+            SUBS=$(az account show --query id -o tsv)
+          fi
+          if [ -z "$SUBS" ] || [ "$SUBS" = "null" ]; then
+            echo "Failed to obtain Subscription ID" >&2
+            exit 1
+          fi
           echo "SUBSCRIPTION_ID=$SUBS" >> "$GITHUB_ENV"
 
       - name: Setup Terraform
