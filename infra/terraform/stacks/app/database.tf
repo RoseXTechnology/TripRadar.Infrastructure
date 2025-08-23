@@ -11,8 +11,9 @@ resource "azurerm_postgresql_flexible_server" "pg" {
   location            = var.location
   resource_group_name = azurerm_resource_group.rg.name
 
-  version  = var.postgres_version
-  sku_name = var.postgres_sku_name
+  version           = var.postgres_version
+  sku_name          = var.postgres_sku_name
+  availability_zone = "1"
 
   storage_mb = var.postgres_storage_mb
 
