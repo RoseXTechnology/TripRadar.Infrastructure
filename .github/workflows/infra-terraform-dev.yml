@@ -1,12 +1,10 @@
-name: Infrastructure - Terraform (dev)
+name: Infrastructure - Terraform (dev) [DEPRECATED manual-only]
+
+# This workflow is deprecated. Single source of truth is infra-terraform.yml.
+# Kept only for manual troubleshooting. It will NOT run on push events.
 
 on:
   workflow_dispatch:
-  push:
-    branches: [ development ]
-    paths:
-      - 'infra/terraform/**'
-      - '.github/workflows/infra-terraform-dev.yml'
 
 permissions:
   id-token: write
@@ -14,6 +12,8 @@ permissions:
 
 jobs:
   terraform:
+    # Prevent accidental runs via re-usable or future triggers
+    if: ${{ github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     env:
       TF_DIR: infra/terraform/stacks/app
