@@ -39,37 +39,46 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Validate Azure Login
-        shell: bash
-        run: |
-          set -euo pipefail
-          if ! az account show >/dev/null 2>&1; then
-            echo "Azure login failed: ensure AZURE_CREDENTIALS or OIDC secrets (AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID) are configured" >&2
-            exit 1
-          fi
-          echo "Logged into Azure tenant: $(az account show --query tenantId -o tsv)"
-
-      - name: Extract Subscription ID
+      - name: Determine Subscription ID
         id: sub
         shell: bash
         run: |
           set -euo pipefail
           SUBS="${{ secrets.AZURE_SUBSCRIPTION_ID }}"
-          if [ -z "$SUBS" ] || [ "$SUBS" = "null" ]; then
-            # Try to parse from AZURE_CREDENTIALS JSON if present
+          if [ -z "${SUBS}" ] || [ "${SUBS}" = "null" ]; then
             if [ -n "${{ secrets.AZURE_CREDENTIALS }}" ] && [ "${{ secrets.AZURE_CREDENTIALS }}" != "null" ]; then
               SUBS=$(jq -r '.subscriptionId' <<< '${{ secrets.AZURE_CREDENTIALS }}')
             fi
           fi
-          # As a final fallback, read from current az context
-          if [ -z "$SUBS" ] || [ "$SUBS" = "null" ]; then
-            SUBS=$(az account show --query id -o tsv)
+          if [ -z "${SUBS}" ] || [ "${SUBS}" = "null" ]; then
+            # fallback to current account
+            SUBS=$(az account show --query id -o tsv || true)
           fi
-          if [ -z "$SUBS" ] || [ "$SUBS" = "null" ]; then
-            echo "Failed to obtain Subscription ID" >&2
+          if [ -z "${SUBS}" ] || [ "${SUBS}" = "null" ]; then
+            echo "Failed to determine Subscription ID" >&2
             exit 1
           fi
           echo "SUBSCRIPTION_ID=$SUBS" >> "$GITHUB_ENV"
+
+      - name: Set Azure subscription
+        shell: bash
+        run: |
+          set -euo pipefail
+          az account set --subscription "$SUBSCRIPTION_ID"
+          echo "Active subscription set to: $(az account show --query id -o tsv)"
+
+      - name: Validate Azure Login
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Azure CLI version: $(az version --query 'azure-cli' -o tsv 2>/dev/null || echo unknown)"
+          echo "Account info:" && az account show -o table || true
+          # enforce login present
+          if ! az account show >/dev/null 2>&1; then
+            echo "Azure login validation failed. Ensure AZURE_CREDENTIALS or OIDC secrets are configured with proper permissions." >&2
+            exit 1
+          fi
+          echo "Logged in. Tenant: $(az account show --query tenantId -o tsv), Sub: $(az account show --query id -o tsv)"
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
