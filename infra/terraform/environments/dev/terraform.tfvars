@@ -28,6 +28,13 @@ api_image  = "tripradardevacr.azurecr.io/tripradar/api:4a098b6f6ef40c909ad152634
 jobs_image = "tripradardevacr.azurecr.io/tripradar/jobs:4a098b6f6ef40c909ad152634657cbcb715f0245"
 db_image   = "tripradardevacr.azurecr.io/tripradar/db:4a098b6f6ef40c909ad152634657cbcb715f0245"
 
+# Autoscaling configuration
+api_min_replicas        = 1
+api_max_replicas        = 5
+api_concurrent_requests = 100
+jobs_min_replicas       = 0
+jobs_max_replicas       = 2
+
 # Custom domain for API (public)
 api_custom_domain = "api.dev.tripradar.io"
 

@@ -126,3 +126,10 @@ variable "api_custom_domain" {
   type        = string
   default     = null
 }
+
+# Front Door feature flag: when true, we disable direct CA custom-domain binding to avoid conflicts
+variable "fd_enable" {
+  description = "Enable Azure Front Door integration (disables direct Container App custom domain binding)"
+  type        = bool
+  default     = false
+}

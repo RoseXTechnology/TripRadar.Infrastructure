@@ -1,7 +1,7 @@
 #  Custom domain and managed certificate for API Container App
 
 locals {
-  api_custom_domain_enabled = var.enable_container_app_environment && var.api_ingress_external && var.api_custom_domain != null
+  api_custom_domain_enabled = var.enable_container_app_environment && var.api_ingress_external && var.api_custom_domain != null && !var.fd_enable
 }
 
 # Read Container App to get verification code and FQDN
