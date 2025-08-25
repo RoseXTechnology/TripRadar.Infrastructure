@@ -4,182 +4,587 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Environment to deploy'
+        description: 'Target environment for deployment'
         required: true
         default: 'dev'
         type: choice
         options:
         - dev
+        - staging
         - prod
       action:
-        description: 'Terraform action'
+        description: 'Terraform operation to execute'
         required: true
         default: 'plan'
         type: choice
         options:
+        - validate
         - plan
         - apply
         - destroy
+      auto_approve:
+        description: 'Auto-approve apply/destroy operations'
+        required: false
+        default: false
+        type: boolean
+      target_resources:
+        description: 'Target specific resources (optional)'
+        required: false
+        type: string
 
 env:
+  # Azure Authentication (OIDC)
   ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
   ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
   ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
   ARM_USE_OIDC: true
-  TF_WORKING_DIR: infra/terraform/environments/${{ github.event.inputs.environment }}/app
-  # Backend configuration - shared for all environments
-  TF_STATE_RG: "tripradar-tfstate-rg"
-  TF_STATE_SA: "tripradartfstate250825"  # Single storage account for all environments
-  TF_STATE_CONTAINER: "tfstate"
+  ARM_SKIP_PROVIDER_REGISTRATION: true
+  
+  # Terraform Configuration
+  TF_VERSION: "1.9.8"
+  TF_WORKING_DIR: infra/terraform/environments/${{ inputs.environment }}/app
+  TF_VAR_FILE: ../terraform.tfvars
+  TF_LOG_LEVEL: INFO
+  
+  # Backend Configuration (Environment Independent)
+  TF_BACKEND_RESOURCE_GROUP: "tripradar-tfstate-rg"
+  TF_BACKEND_STORAGE_ACCOUNT: "tripradartfstate250825"
+  TF_BACKEND_CONTAINER: "tfstate"
+  
+  # Pipeline Configuration
+  AZURE_LOCATION: "northeurope"
+  PROJECT_NAME: "tripradar"
 
 jobs:
-  terraform:
+  # ==============================================================================
+  # VALIDATION JOB - Validate inputs and environment prerequisites
+  # ==============================================================================
+  validate-environment:
+    name: 🔍 Validate Environment & Prerequisites
     runs-on: ubuntu-latest
-    environment: ${{ github.event.inputs.environment }}
+    outputs:
+      environment: ${{ steps.validate.outputs.environment }}
+      resource_group_name: ${{ steps.validate.outputs.resource_group_name }}
+      terraform_key: ${{ steps.validate.outputs.terraform_key }}
+      
+    steps:
+      - name: 📋 Validate Pipeline Inputs
+        id: validate
+        run: |
+          # Validate environment input
+          case "${{ inputs.environment }}" in
+            dev|staging|prod)
+              echo "✅ Environment '${{ inputs.environment }}' is valid"
+              ;;
+            *)
+              echo "❌ Invalid environment: ${{ inputs.environment }}"
+              exit 1
+              ;;
+          esac
+          
+          # Validate action input
+          case "${{ inputs.action }}" in
+            validate|plan|apply|destroy)
+              echo "✅ Action '${{ inputs.action }}' is valid"
+              ;;
+            *)
+              echo "❌ Invalid action: ${{ inputs.action }}"
+              exit 1
+              ;;
+          esac
+          
+          # Set outputs
+          echo "environment=${{ inputs.environment }}" >> $GITHUB_OUTPUT
+          echo "resource_group_name=${{ env.PROJECT_NAME }}-${{ inputs.environment }}-rg" >> $GITHUB_OUTPUT
+          echo "terraform_key=${{ env.PROJECT_NAME }}-${{ inputs.environment }}.tfstate" >> $GITHUB_OUTPUT
+          
+          # Validate auto-approve usage
+          if [[ "${{ inputs.auto_approve }}" == "true" && "${{ inputs.environment }}" == "prod" ]]; then
+            echo "⚠️ WARNING: Auto-approve enabled for production environment"
+            if [[ "${{ inputs.action }}" == "destroy" ]]; then
+              echo "❌ Auto-approve destroy operations are not allowed in production"
+              exit 1
+            fi
+          fi
+
+  # ==============================================================================
+  # INFRASTRUCTURE SETUP JOB - Setup backend storage and authentication
+  # ==============================================================================  
+  setup-infrastructure:
+    name: 🏗️ Setup Infrastructure Foundation
+    runs-on: ubuntu-latest
+    needs: [validate-environment]
     permissions:
       id-token: write
       contents: read
-    
+    outputs:
+      backend_configured: ${{ steps.backend.outputs.configured }}
+      
     steps:
-      - name: Checkout
+      - name: 🔄 Checkout Repository
         uses: actions/checkout@v4
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: "1.9.8"
-
-      - name: Validate required Azure secrets
-        run: |
-          if [ -z "${{ secrets.AZURE_CLIENT_ID }}" ]; then
-            echo "AZURE_CLIENT_ID is missing in repository or environment secrets"
-            exit 1
-          fi
-          if [ -z "${{ secrets.AZURE_TENANT_ID }}" ]; then
-            echo "AZURE_TENANT_ID is missing in repository or environment secrets"
-            exit 1
-          fi
-          if [ -z "${{ secrets.AZURE_SUBSCRIPTION_ID }}" ]; then
-            echo "AZURE_SUBSCRIPTION_ID is missing in repository or environment secrets"
-            exit 1
-          fi
-          echo "All required Azure secrets are present"
-
-      - name: Azure Login (OIDC)
+          fetch-depth: 0
+          
+      - name: 🔐 Authenticate with Azure (OIDC)
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Setup Terraform Backend Storage
-        run: |
-          echo "🔍 Checking Terraform backend storage..."
+          client-id: ${{ env.ARM_CLIENT_ID }}
+          tenant-id: ${{ env.ARM_TENANT_ID }}
+          subscription-id: ${{ env.ARM_SUBSCRIPTION_ID }}
           
-          # Check if resource group exists
-          if ! az group show --name "${{ env.TF_STATE_RG }}" >/dev/null 2>&1; then
-            echo "📦 Creating resource group: ${{ env.TF_STATE_RG }}"
-            az group create \
-              --name "${{ env.TF_STATE_RG }}" \
-              --location "northeurope" \
-              --tags "Project=tripradar" "Purpose=TerraformState"
-          else
-            echo "✅ Resource group exists: ${{ env.TF_STATE_RG }}"
+      - name: 🔍 Validate Azure Connectivity
+        run: |
+          echo "🔍 Validating Azure connectivity and permissions..."
+          
+          # Check Azure CLI authentication
+          if ! az account show --query "id" -o tsv >/dev/null 2>&1; then
+            echo "❌ Azure authentication failed"
+            exit 1
           fi
           
-          # Check if storage account exists
-          if ! az storage account show --name "${{ env.TF_STATE_SA }}" --resource-group "${{ env.TF_STATE_RG }}" >/dev/null 2>&1; then
-            echo "💾 Creating storage account: ${{ env.TF_STATE_SA }}"
+          SUBSCRIPTION_ID=$(az account show --query "id" -o tsv)
+          echo "✅ Authenticated to subscription: $SUBSCRIPTION_ID"
+          
+          # Validate subscription matches expected
+          if [[ "$SUBSCRIPTION_ID" != "${{ env.ARM_SUBSCRIPTION_ID }}" ]]; then
+            echo "❌ Subscription mismatch. Expected: ${{ env.ARM_SUBSCRIPTION_ID }}, Got: $SUBSCRIPTION_ID"
+            exit 1
+          fi
+          
+      - name: 🗄️ Setup Terraform Backend Storage
+        id: backend
+        run: |
+          echo "🗄️ Configuring Terraform backend storage..."
+          
+          # Check if backend resource group exists
+          if ! az group show --name "${{ env.TF_BACKEND_RESOURCE_GROUP }}" >/dev/null 2>&1; then
+            echo "📦 Creating backend resource group: ${{ env.TF_BACKEND_RESOURCE_GROUP }}"
+            az group create \
+              --name "${{ env.TF_BACKEND_RESOURCE_GROUP }}" \
+              --location "${{ env.AZURE_LOCATION }}" \
+              --tags \
+                "Project=${{ env.PROJECT_NAME }}" \
+                "Purpose=TerraformState" \
+                "Environment=shared" \
+                "ManagedBy=GitHubActions"
+          else
+            echo "✅ Backend resource group exists: ${{ env.TF_BACKEND_RESOURCE_GROUP }}"
+          fi
+          
+          # Check if backend storage account exists
+          if ! az storage account show \
+            --name "${{ env.TF_BACKEND_STORAGE_ACCOUNT }}" \
+            --resource-group "${{ env.TF_BACKEND_RESOURCE_GROUP }}" >/dev/null 2>&1; then
+            echo "💾 Creating backend storage account: ${{ env.TF_BACKEND_STORAGE_ACCOUNT }}"
             az storage account create \
-              --resource-group "${{ env.TF_STATE_RG }}" \
-              --name "${{ env.TF_STATE_SA }}" \
-              --location "northeurope" \
+              --resource-group "${{ env.TF_BACKEND_RESOURCE_GROUP }}" \
+              --name "${{ env.TF_BACKEND_STORAGE_ACCOUNT }}" \
+              --location "${{ env.AZURE_LOCATION }}" \
               --sku "Standard_LRS" \
               --kind "StorageV2" \
               --allow-blob-public-access false \
               --https-only true \
-              --tags "Project=tripradar" "Purpose=TerraformState"
+              --min-tls-version "TLS1_2" \
+              --tags \
+                "Project=${{ env.PROJECT_NAME }}" \
+                "Purpose=TerraformState" \
+                "Environment=shared" \
+                "ManagedBy=GitHubActions"
           else
-            echo "✅ Storage account exists: ${{ env.TF_STATE_SA }}"
+            echo "✅ Backend storage account exists: ${{ env.TF_BACKEND_STORAGE_ACCOUNT }}"
           fi
           
-          # Check if container exists
-          if ! az storage container show --name "${{ env.TF_STATE_CONTAINER }}" --account-name "${{ env.TF_STATE_SA }}" --auth-mode login >/dev/null 2>&1; then
-            echo "📂 Creating container: ${{ env.TF_STATE_CONTAINER }}"
+          # Check if backend container exists
+          if ! az storage container show \
+            --name "${{ env.TF_BACKEND_CONTAINER }}" \
+            --account-name "${{ env.TF_BACKEND_STORAGE_ACCOUNT }}" \
+            --auth-mode login >/dev/null 2>&1; then
+            echo "📂 Creating backend container: ${{ env.TF_BACKEND_CONTAINER }}"
             az storage container create \
-              --account-name "${{ env.TF_STATE_SA }}" \
-              --name "${{ env.TF_STATE_CONTAINER }}" \
+              --account-name "${{ env.TF_BACKEND_STORAGE_ACCOUNT }}" \
+              --name "${{ env.TF_BACKEND_CONTAINER }}" \
               --auth-mode login
           else
-            echo "✅ Container exists: ${{ env.TF_STATE_CONTAINER }}"
+            echo "✅ Backend container exists: ${{ env.TF_BACKEND_CONTAINER }}"
           fi
           
-          echo "✅ Terraform backend storage is ready!"
+          echo "configured=true" >> $GITHUB_OUTPUT
+          echo "✅ Terraform backend storage is ready"
 
-      - name: Terraform Init
+  # ==============================================================================
+  # TERRAFORM OPERATIONS JOB - Main infrastructure operations
+  # ==============================================================================
+  terraform-operations:
+    name: 🏗️ Terraform ${{ inputs.action }} (${{ inputs.environment }})
+    runs-on: ubuntu-latest
+    needs: [validate-environment, setup-infrastructure]
+    environment: ${{ inputs.environment }}
+    permissions:
+      id-token: write
+      contents: read
+    outputs:
+      api_url: ${{ steps.outputs.outputs.api_url }}
+      deployment_status: ${{ steps.apply.outputs.status || steps.plan.outputs.status || steps.destroy.outputs.status }}
+      
+    steps:
+      - name: 🔄 Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          
+      - name: 🔧 Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+          
+      - name: 🔐 Authenticate with Azure (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ env.ARM_CLIENT_ID }}
+          tenant-id: ${{ env.ARM_TENANT_ID }}
+          subscription-id: ${{ env.ARM_SUBSCRIPTION_ID }}
+          
+      - name: ⚙️ Initialize Terraform Backend
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: |
+          echo "⚙️ Initializing Terraform with remote backend..."
           terraform init \
-            -backend-config="resource_group_name=${{ env.TF_STATE_RG }}" \
-            -backend-config="storage_account_name=${{ env.TF_STATE_SA }}" \
-            -backend-config="container_name=${{ env.TF_STATE_CONTAINER }}" \
-            -backend-config="key=tripradar-${{ github.event.inputs.environment }}.tfstate"
-
-      - name: Import Resource Group
+            -backend-config="resource_group_name=${{ env.TF_BACKEND_RESOURCE_GROUP }}" \
+            -backend-config="storage_account_name=${{ env.TF_BACKEND_STORAGE_ACCOUNT }}" \
+            -backend-config="container_name=${{ env.TF_BACKEND_CONTAINER }}" \
+            -backend-config="key=${{ needs.validate-environment.outputs.terraform_key }}" \
+            -no-color
+            
+      - name: 🔧 Handle Legacy Database State
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: |
-          RG_NAME="tripradar-${{ github.event.inputs.environment }}-rg"
-          ADDR="module.app.azurerm_resource_group.rg"
-          VAR_FILE="../terraform.tfvars"
+          echo "🔧 Checking for legacy database state issues..."
           
-          if terraform state list | grep -q "^$ADDR$"; then
-            echo "RG already in state — skipping import"
-          elif az group show -n "$RG_NAME" >/dev/null 2>&1; then
-            echo "Importing existing RG into state..."
-            terraform import -var-file="$VAR_FILE" "$ADDR" "/subscriptions/${ARM_SUBSCRIPTION_ID}/resourceGroups/${RG_NAME}" || true
+          # Check if database resource exists in state
+          if terraform state list | grep -q "^module.app.azurerm_postgresql_flexible_server_database.tripradar\\[0\\]$"; then
+            CURRENT_DB_ID=$(terraform state show -no-color "module.app.azurerm_postgresql_flexible_server_database.tripradar[0]" 2>/dev/null | awk -F' = ' '/^id = /{print $2; exit}' || echo "")
+            
+            # Check if it's a system database
+            if echo "$CURRENT_DB_ID" | grep -E "(azure_sys|azure_maintenance|postgres)$"; then
+              DB_NAME=$(echo "$CURRENT_DB_ID" | sed 's|.*/databases/||')
+              echo "⚠️ Removing system database '$DB_NAME' from Terraform state"
+              terraform state rm "module.app.azurerm_postgresql_flexible_server_database.tripradar[0]" || true
+              
+              # Import correct application database
+              echo "🔄 Importing correct application database..."
+              RG_NAME="${{ needs.validate-environment.outputs.resource_group_name }}"
+              PG_NAME=$(az postgres flexible-server list -g "$RG_NAME" --query "[0].name" -o tsv 2>/dev/null || true)
+              if [ -n "$PG_NAME" ]; then
+                APP_DB_NAME=$(az postgres flexible-server db list -g "$RG_NAME" -s "$PG_NAME" --query "[?name!='postgres' && name!='azure_maintenance' && name!='azure_sys']|[0].name" -o tsv 2>/dev/null || true)
+                if [ -n "$APP_DB_NAME" ]; then
+                  echo "✅ Importing application database: $APP_DB_NAME"
+                  terraform import -var-file="${{ env.TF_VAR_FILE }}" \
+                    "module.app.azurerm_postgresql_flexible_server_database.tripradar[0]" \
+                    "/subscriptions/${{ env.ARM_SUBSCRIPTION_ID }}/resourceGroups/${RG_NAME}/providers/Microsoft.DBforPostgreSQL/flexibleServers/${PG_NAME}/databases/${APP_DB_NAME}" || true
+                fi
+              fi
+            else
+              echo "✅ Database state appears correct: $CURRENT_DB_ID"
+            fi
+          fi
+          
+      - name: 📥 Import Existing Resources
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          echo "📥 Importing existing Azure resources to prevent conflicts..."
+          
+          RG_NAME="${{ needs.validate-environment.outputs.resource_group_name }}"
+          SUB="/subscriptions/${{ env.ARM_SUBSCRIPTION_ID }}"
+          VAR_FILE="${{ env.TF_VAR_FILE }}"
+          
+          # Reusable import function with error handling
+          import_resource() {
+            local tf_address="$1"
+            local azure_resource_id="$2"
+            local resource_name="$3"
+            
+            if terraform state list | grep -q "^${tf_address}$"; then
+              echo "⏭️  ${resource_name}: Already in state"
+              return 0
+            fi
+            
+            if [ -z "$azure_resource_id" ]; then
+              echo "⏭️  ${resource_name}: Resource not found in Azure"
+              return 0
+            fi
+            
+            echo "📥 ${resource_name}: Importing..."
+            if terraform import -var-file="$VAR_FILE" "$tf_address" "$azure_resource_id" 2>/dev/null; then
+              echo "✅ ${resource_name}: Import successful"
+            else
+              echo "⚠️  ${resource_name}: Import failed (may not exist or already managed)"
+            fi
+          }
+          
+          # Import Resource Group
+          import_resource "module.app.azurerm_resource_group.rg" \
+                          "${SUB}/resourceGroups/${RG_NAME}" \
+                          "Resource Group"
+          
+          # Import PostgreSQL Server
+          PG_NAME=$(az postgres flexible-server list -g "$RG_NAME" --query "[0].name" -o tsv 2>/dev/null || true)
+          if [ -n "$PG_NAME" ]; then
+            import_resource "module.app.azurerm_postgresql_flexible_server.pg[0]" \
+                            "${SUB}/resourceGroups/${RG_NAME}/providers/Microsoft.DBforPostgreSQL/flexibleServers/${PG_NAME}" \
+                            "PostgreSQL Server"
+          fi
+          
+          # Import Managed Identities
+          for service in api jobs db; do
+            MI_NAME="${{ env.PROJECT_NAME }}-${{ inputs.environment }}-${service}-mi"
+            if az identity show -g "$RG_NAME" -n "$MI_NAME" >/dev/null 2>&1; then
+              import_resource "module.app.azurerm_user_assigned_identity.${service}" \
+                              "${SUB}/resourceGroups/${RG_NAME}/providers/Microsoft.ManagedIdentity/userAssignedIdentities/${MI_NAME}" \
+                              "Managed Identity ($service)"
+            fi
+          done
+          
+          # Import Log Analytics Workspace
+          LAW_NAME=$(az monitor log-analytics workspace list -g "$RG_NAME" --query "[0].name" -o tsv 2>/dev/null || true)
+          if [ -n "$LAW_NAME" ]; then
+            import_resource "module.app.azurerm_log_analytics_workspace.law[0]" \
+                            "${SUB}/resourceGroups/${RG_NAME}/providers/Microsoft.OperationalInsights/workspaces/${LAW_NAME}" \
+                            "Log Analytics Workspace"
+          fi
+          
+          # Import Container Registry
+          ACR_NAME=$(az acr list -g "$RG_NAME" --query "[0].name" -o tsv 2>/dev/null || true)
+          if [ -n "$ACR_NAME" ]; then
+            import_resource "module.app.azurerm_container_registry.acr[0]" \
+                            "${SUB}/resourceGroups/${RG_NAME}/providers/Microsoft.ContainerRegistry/registries/${ACR_NAME}" \
+                            "Container Registry"
+          fi
+          
+          # Import Key Vault
+          KV_NAME=$(az keyvault list -g "$RG_NAME" --query "[0].name" -o tsv 2>/dev/null || true)
+          if [ -n "$KV_NAME" ]; then
+            import_resource "module.app.azurerm_key_vault.kv[0]" \
+                            "${SUB}/resourceGroups/${RG_NAME}/providers/Microsoft.KeyVault/vaults/${KV_NAME}" \
+                            "Key Vault"
+          fi
+          
+          # Import Application Insights
+          EXPECTED_APPI="${RG_NAME%-rg}-appi"
+          if az monitor app-insights component show -g "$RG_NAME" -a "$EXPECTED_APPI" >/dev/null 2>&1; then
+            APPI_NAME="$EXPECTED_APPI"
           else
-            echo "RG not found in Azure — skipping import"
+            APPI_NAME=$(az monitor app-insights component list -g "$RG_NAME" --query "[0].name" -o tsv 2>/dev/null || true)
           fi
-
-      - name: Import Existing Resources
+          
+          if [ -n "$APPI_NAME" ]; then
+            import_resource "module.app.azurerm_application_insights.appi[0]" \
+                            "${SUB}/resourceGroups/${RG_NAME}/providers/Microsoft.Insights/components/${APPI_NAME}" \
+                            "Application Insights"
+          fi
+          
+          # Import Container Apps Environment
+          CAE_NAME=$(az containerapp env list -g "$RG_NAME" --query "[0].name" -o tsv 2>/dev/null || true)
+          if [ -n "$CAE_NAME" ]; then
+            import_resource "module.app.azurerm_container_app_environment.cae[0]" \
+                            "${SUB}/resourceGroups/${RG_NAME}/providers/Microsoft.App/managedEnvironments/${CAE_NAME}" \
+                            "Container Apps Environment"
+                            
+            # Import Container Apps
+            for CA_NAME in $(az containerapp list -g "$RG_NAME" --query "[].name" -o tsv 2>/dev/null || true); do
+              CA_ID=$(az containerapp show -g "$RG_NAME" -n "$CA_NAME" --query id -o tsv 2>/dev/null || true)
+              case "$CA_NAME" in
+                *-api)
+                  import_resource "module.app.module.ca_api[0].azurerm_container_app.this" \
+                                  "$CA_ID" \
+                                  "Container App (API)"
+                  ;;
+                *-jobs)
+                  import_resource "module.app.module.ca_jobs[0].azurerm_container_app.this" \
+                                  "$CA_ID" \
+                                  "Container App (Jobs)"
+                  ;;
+              esac
+            done
+          fi
+          
+          echo "✅ Resource import process completed"
+          
+      - name: ✅ Terraform Validate
+        if: inputs.action == 'validate' || inputs.action == 'plan' || inputs.action == 'apply'
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: |
-          chmod +x ../../../../../.github/scripts/terraform-import.sh
-          ../../../../../.github/scripts/terraform-import.sh ${{ github.event.inputs.environment }} .
-
-      - name: Terraform Plan
-        if: github.event.inputs.action == 'plan'
-        working-directory: ${{ env.TF_WORKING_DIR }}
-        run: terraform plan -var-file="../terraform.tfvars"
-
-      - name: Terraform Apply
-        if: github.event.inputs.action == 'apply'
-        working-directory: ${{ env.TF_WORKING_DIR }}
-        run: terraform apply -auto-approve -var-file="../terraform.tfvars"
-
-      - name: Terraform Destroy
-        if: github.event.inputs.action == 'destroy'
-        working-directory: ${{ env.TF_WORKING_DIR }}
-        run: terraform destroy -auto-approve -var-file="../terraform.tfvars"
-
-      - name: Get API URL
-        if: github.event.inputs.action == 'apply' && github.event.inputs.environment == 'dev'
+          echo "✅ Validating Terraform configuration..."
+          terraform validate -no-color
+          echo "✅ Terraform configuration is valid"
+          
+      - name: 📋 Terraform Plan
+        if: inputs.action == 'plan' || inputs.action == 'apply'
+        id: plan
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: |
+          echo "📋 Generating Terraform execution plan..."
+          
+          PLAN_ARGS="-var-file=${{ env.TF_VAR_FILE }} -no-color -detailed-exitcode"
+          
+          # Add target resources if specified
+          if [[ -n "${{ inputs.target_resources }}" ]]; then
+            for resource in $(echo "${{ inputs.target_resources }}" | tr ',' ' '); do
+              PLAN_ARGS="$PLAN_ARGS -target=$resource"
+            done
+            echo "🎯 Targeting specific resources: ${{ inputs.target_resources }}"
+          fi
+          
+          # Save plan to file for apply step
+          if terraform plan $PLAN_ARGS -out=tfplan; then
+            echo "✅ Terraform plan generated successfully"
+            echo "status=success" >> $GITHUB_OUTPUT
+            
+            # Show plan summary
+            terraform show -no-color tfplan
+          else
+            PLAN_EXIT_CODE=$?
+            if [[ $PLAN_EXIT_CODE -eq 2 ]]; then
+              echo "📝 Plan generated with changes"
+              terraform show -no-color tfplan
+              echo "status=changes" >> $GITHUB_OUTPUT
+            else
+              echo "❌ Terraform plan failed"
+              echo "status=failed" >> $GITHUB_OUTPUT
+              exit 1
+            fi
+          fi
+          
+      - name: 🚀 Terraform Apply
+        if: inputs.action == 'apply'
+        id: apply
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          echo "🚀 Applying Terraform changes..."
+          
+          APPLY_ARGS="-no-color"
+          
+          # Handle auto-approve
+          if [[ "${{ inputs.auto_approve }}" == "true" ]]; then
+            echo "⚡ Auto-approve enabled - applying without confirmation"
+            APPLY_ARGS="$APPLY_ARGS -auto-approve"
+          fi
+          
+          # Apply using the saved plan
+          if terraform apply $APPLY_ARGS tfplan; then
+            echo "✅ Terraform apply completed successfully"
+            echo "status=success" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Terraform apply failed"
+            echo "status=failed" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+          
+      - name: 💥 Terraform Destroy
+        if: inputs.action == 'destroy'
+        id: destroy
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          echo "💥 Destroying Terraform-managed infrastructure..."
+          
+          # Security check for production
+          if [[ "${{ inputs.environment }}" == "prod" && "${{ inputs.auto_approve }}" != "true" ]]; then
+            echo "❌ Destroy operations in production require auto_approve=true for safety"
+            echo "❌ This prevents accidental destruction of production resources"
+            exit 1
+          fi
+          
+          DESTROY_ARGS="-var-file=${{ env.TF_VAR_FILE }} -no-color"
+          
+          # Add target resources if specified
+          if [[ -n "${{ inputs.target_resources }}" ]]; then
+            for resource in $(echo "${{ inputs.target_resources }}" | tr ',' ' '); do
+              DESTROY_ARGS="$DESTROY_ARGS -target=$resource"
+            done
+            echo "🎯 Targeting specific resources: ${{ inputs.target_resources }}"
+          fi
+          
+          # Handle auto-approve
+          if [[ "${{ inputs.auto_approve }}" == "true" ]]; then
+            echo "⚡ Auto-approve enabled - destroying without confirmation"
+            DESTROY_ARGS="$DESTROY_ARGS -auto-approve"
+          fi
+          
+          if terraform destroy $DESTROY_ARGS; then
+            echo "✅ Terraform destroy completed successfully"
+            echo "status=success" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Terraform destroy failed"
+            echo "status=failed" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+          
+      - name: 📊 Capture Terraform Outputs
+        if: (inputs.action == 'apply' || inputs.action == 'plan') && steps.apply.outputs.status == 'success'
+        id: outputs
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          echo "📊 Capturing Terraform outputs..."
+          
+          # Capture API URL if available
           API_URL=$(terraform output -raw api_url 2>/dev/null || echo "")
-          if [ -n "$API_URL" ]; then
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "## 🚀 Deployment Complete" >> $GITHUB_STEP_SUMMARY
-            echo "**API URL:** [$API_URL]($API_URL)" >> $GITHUB_STEP_SUMMARY
-            echo "API_URL=$API_URL" >> $GITHUB_ENV
+          if [[ -n "$API_URL" ]]; then
+            echo "api_url=$API_URL" >> $GITHUB_OUTPUT
+            echo "🌐 API URL: $API_URL"
           fi
-
-      - name: Azure CLI Logout
+          
+          # Generate deployment summary
+          {
+            echo "## 🚀 Deployment Summary"
+            echo ""
+            echo "- **Environment**: ${{ inputs.environment }}"
+            echo "- **Action**: ${{ inputs.action }}"
+            echo "- **Status**: ✅ Success"
+            echo "- **Timestamp**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+            
+            if [[ -n "$API_URL" ]]; then
+              echo "- **API URL**: [$API_URL]($API_URL)"
+            fi
+            
+            if [[ -n "${{ inputs.target_resources }}" ]]; then
+              echo "- **Target Resources**: ${{ inputs.target_resources }}"
+            fi
+            
+            echo ""
+            echo "### 📋 Next Steps"
+            if [[ "${{ inputs.environment }}" == "dev" && -n "$API_URL" ]]; then
+              echo "- 🧪 Test your API using Postman: \`TripRadar Dev Azure Environment\`"
+              echo "- 📊 Monitor application: [Azure Portal](https://portal.azure.com/#@/resource/subscriptions/${{ env.ARM_SUBSCRIPTION_ID }}/resourceGroups/${{ needs.validate-environment.outputs.resource_group_name }})"
+            fi
+          } >> $GITHUB_STEP_SUMMARY
+          
+      - name: 🧹 Cleanup on Failure
+        if: failure()
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          echo "🧹 Cleaning up after failure..."
+          
+          # Clean up any lock files or temporary files
+          rm -f .terraform.lock.hcl tfplan terraform.tfplan
+          
+          # Log failure information
+          {
+            echo "## ❌ Deployment Failed"
+            echo ""
+            echo "- **Environment**: ${{ inputs.environment }}"
+            echo "- **Action**: ${{ inputs.action }}"
+            echo "- **Timestamp**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+            echo ""
+            echo "Please check the workflow logs for detailed error information."
+          } >> $GITHUB_STEP_SUMMARY
+          
+      - name: 🔐 Azure Logout
         if: always()
         run: |
           if az account show >/dev/null 2>&1; then
             az logout
-            echo "Successfully logged out of Azure CLI"
+            echo "✅ Successfully logged out from Azure CLI"
           else
-            echo "No active Azure CLI session found - skipping logout"
+            echo "ℹ️ No active Azure CLI session to logout"
           fi
