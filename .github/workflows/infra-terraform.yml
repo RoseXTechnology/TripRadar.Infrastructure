@@ -27,6 +27,10 @@ env:
   ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
   ARM_USE_OIDC: true
   TF_WORKING_DIR: infra/terraform/environments/${{ github.event.inputs.environment }}/app
+  # Backend configuration - shared for all environments
+  TF_STATE_RG: "tripradar-tfstate-rg"
+  TF_STATE_SA: "tripradartfstate250825"  # Single storage account for all environments
+  TF_STATE_CONTAINER: "tfstate"
 
 jobs:
   terraform:
@@ -68,9 +72,58 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
+      - name: Setup Terraform Backend Storage
+        run: |
+          echo "🔍 Checking Terraform backend storage..."
+          
+          # Check if resource group exists
+          if ! az group show --name "${{ env.TF_STATE_RG }}" >/dev/null 2>&1; then
+            echo "📦 Creating resource group: ${{ env.TF_STATE_RG }}"
+            az group create \
+              --name "${{ env.TF_STATE_RG }}" \
+              --location "northeurope" \
+              --tags "Project=tripradar" "Purpose=TerraformState"
+          else
+            echo "✅ Resource group exists: ${{ env.TF_STATE_RG }}"
+          fi
+          
+          # Check if storage account exists
+          if ! az storage account show --name "${{ env.TF_STATE_SA }}" --resource-group "${{ env.TF_STATE_RG }}" >/dev/null 2>&1; then
+            echo "💾 Creating storage account: ${{ env.TF_STATE_SA }}"
+            az storage account create \
+              --resource-group "${{ env.TF_STATE_RG }}" \
+              --name "${{ env.TF_STATE_SA }}" \
+              --location "northeurope" \
+              --sku "Standard_LRS" \
+              --kind "StorageV2" \
+              --allow-blob-public-access false \
+              --https-only true \
+              --tags "Project=tripradar" "Purpose=TerraformState"
+          else
+            echo "✅ Storage account exists: ${{ env.TF_STATE_SA }}"
+          fi
+          
+          # Check if container exists
+          if ! az storage container show --name "${{ env.TF_STATE_CONTAINER }}" --account-name "${{ env.TF_STATE_SA }}" --auth-mode login >/dev/null 2>&1; then
+            echo "📂 Creating container: ${{ env.TF_STATE_CONTAINER }}"
+            az storage container create \
+              --account-name "${{ env.TF_STATE_SA }}" \
+              --name "${{ env.TF_STATE_CONTAINER }}" \
+              --auth-mode login
+          else
+            echo "✅ Container exists: ${{ env.TF_STATE_CONTAINER }}"
+          fi
+          
+          echo "✅ Terraform backend storage is ready!"
+
       - name: Terraform Init
         working-directory: ${{ env.TF_WORKING_DIR }}
-        run: terraform init
+        run: |
+          terraform init \
+            -backend-config="resource_group_name=${{ env.TF_STATE_RG }}" \
+            -backend-config="storage_account_name=${{ env.TF_STATE_SA }}" \
+            -backend-config="container_name=${{ env.TF_STATE_CONTAINER }}" \
+            -backend-config="key=tripradar-${{ github.event.inputs.environment }}.tfstate"
 
       - name: Import Resource Group
         working-directory: ${{ env.TF_WORKING_DIR }}
