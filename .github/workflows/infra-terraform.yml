@@ -1,4 +1,4 @@
-name: Infrastructure - Terraform
+name: Terraform
 
 on:
   pull_request:
@@ -205,7 +205,16 @@ jobs:
 
           import_if_needed() {
             local addr="$1"; local rid="$2"
+            local in_state="false"
             if terraform state list | grep -q "^${addr}$"; then
+              in_state="true"
+              local current_id
+              current_id=$(terraform state show -no-color "${addr}" 2>/dev/null | awk -F' = ' '/^id = /{print $2; exit}')
+              if [ -n "$rid" ] && [ "$current_id" != "$rid" ]; then
+                echo "Re-importing ${addr} with correct id (was: $current_id)"
+                terraform import -var-file="$VAR_FILE" "${addr}" "${rid}" || true
+                return
+              fi
               echo "${addr} already in state — skipping"
             else
               echo "Importing ${addr} ..."
@@ -218,7 +227,7 @@ jobs:
           if [ -n "$PG_NAME" ]; then
             import_if_needed "module.app.azurerm_postgresql_flexible_server.pg[0]" "${SUB}/resourceGroups/${RG_NAME}/providers/Microsoft.DBforPostgreSQL/flexibleServers/${PG_NAME}"
             # PostgreSQL Database (skip the default 'postgres' DB)
-            DB_NAME=$(az postgres flexible-server db list -g "$RG_NAME" -s "$PG_NAME" --query "[?name!='postgres']|[0].name" -o tsv 2>/dev/null || true)
+            DB_NAME=$(az postgres flexible-server db list -g "$RG_NAME" -s "$PG_NAME" --query "[?name!='postgres' && name!='azure_maintenance']|[0].name" -o tsv 2>/dev/null || true)
             if [ -n "$DB_NAME" ]; then
               import_if_needed "module.app.azurerm_postgresql_flexible_server_database.tripradar[0]" "${SUB}/resourceGroups/${RG_NAME}/providers/Microsoft.DBforPostgreSQL/flexibleServers/${PG_NAME}/databases/${DB_NAME}"
             fi
@@ -436,7 +445,15 @@ jobs:
           import_if_needed() {
             local addr="$1"; local rid="$2"
             if terraform state list | grep -q "^${addr}$"; then
-              echo "${addr} already in state — skipping"
+              # If in state, ensure the ID matches; if not, re-import with correct ID
+              local current_id
+              current_id=$(terraform state show -no-color "${addr}" 2>/dev/null | awk -F' = ' '/^id = /{print $2; exit}')
+              if [ -n "$rid" ] && [ "$current_id" != "$rid" ]; then
+                echo "Re-importing ${addr} with correct id (was: $current_id)"
+                terraform import -var-file="$VAR_FILE" "${addr}" "${rid}" || true
+              else
+                echo "${addr} already in state — skipping"
+              fi
             else
               echo "Importing ${addr} ..."
               terraform import -var-file="$VAR_FILE" "${addr}" "${rid}" || true
@@ -447,7 +464,7 @@ jobs:
           if [ -n "$PG_NAME" ]; then
             import_if_needed "module.app.azurerm_postgresql_flexible_server.pg[0]" "${SUB}/resourceGroups/${RG_NAME}/providers/Microsoft.DBforPostgreSQL/flexibleServers/${PG_NAME}"
             # PostgreSQL Database (skip the default 'postgres' DB)
-            DB_NAME=$(az postgres flexible-server db list -g "$RG_NAME" -s "$PG_NAME" --query "[?name!='postgres']|[0].name" -o tsv 2>/dev/null || true)
+            DB_NAME=$(az postgres flexible-server db list -g "$RG_NAME" -s "$PG_NAME" --query "[?name!='postgres' && name!='azure_maintenance']|[0].name" -o tsv 2>/dev/null || true)
             if [ -n "$DB_NAME" ]; then
               import_if_needed "module.app.azurerm_postgresql_flexible_server_database.tripradar[0]" "${SUB}/resourceGroups/${RG_NAME}/providers/Microsoft.DBforPostgreSQL/flexibleServers/${PG_NAME}/databases/${DB_NAME}"
             fi
@@ -697,7 +714,7 @@ jobs:
           if [ -n "$PG_NAME" ]; then
             import_if_needed "module.app.azurerm_postgresql_flexible_server.pg[0]" "${SUB}/resourceGroups/${RG_NAME}/providers/Microsoft.DBforPostgreSQL/flexibleServers/${PG_NAME}"
             # PostgreSQL Database (skip the default 'postgres' DB)
-            DB_NAME=$(az postgres flexible-server db list -g "$RG_NAME" -s "$PG_NAME" --query "[?name!='postgres']|[0].name" -o tsv 2>/dev/null || true)
+            DB_NAME=$(az postgres flexible-server db list -g "$RG_NAME" -s "$PG_NAME" --query "[?name!='postgres' && name!='azure_maintenance']|[0].name" -o tsv 2>/dev/null || true)
             if [ -n "$DB_NAME" ]; then
               import_if_needed "module.app.azurerm_postgresql_flexible_server_database.tripradar[0]" "${SUB}/resourceGroups/${RG_NAME}/providers/Microsoft.DBforPostgreSQL/flexibleServers/${PG_NAME}/databases/${DB_NAME}"
             fi
@@ -835,8 +852,8 @@ jobs:
           PG_NAME=$(az postgres flexible-server list -g "$RG_NAME" --query "[0].name" -o tsv 2>/dev/null || true)
           if [ -n "$PG_NAME" ]; then
             import_if_needed "module.app.azurerm_postgresql_flexible_server.pg[0]" "${SUB}/resourceGroups/${RG_NAME}/providers/Microsoft.DBforPostgreSQL/flexibleServers/${PG_NAME}"
-            # PostgreSQL Database (skip the default 'postgres' DB)
-            DB_NAME=$(az postgres flexible-server db list -g "$RG_NAME" -s "$PG_NAME" --query "[?name!='postgres']|[0].name" -o tsv 2>/dev/null || true)
+            # PostgreSQL Database (skip system DBs 'postgres' and 'azure_maintenance')
+            DB_NAME=$(az postgres flexible-server db list -g "$RG_NAME" -s "$PG_NAME" --query "[?name!='postgres' && name!='azure_maintenance']|[0].name" -o tsv 2>/dev/null || true)
             if [ -n "$DB_NAME" ]; then
               import_if_needed "module.app.azurerm_postgresql_flexible_server_database.tripradar[0]" "${SUB}/resourceGroups/${RG_NAME}/providers/Microsoft.DBforPostgreSQL/flexibleServers/${PG_NAME}/databases/${DB_NAME}"
             fi

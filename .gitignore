@@ -2,8 +2,8 @@
 bin/
 obj/
 .vs/
-.vscode/
-.windsurf/
+*.vscode/
+*.windsurf/
 .cursor/
 *.user
 *.suo
