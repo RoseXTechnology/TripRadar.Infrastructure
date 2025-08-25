@@ -36,9 +36,11 @@ permissions:
   id-token: write
   contents: read
 
-concurrency:
-  group: terraform-${{ github.ref }}
-  cancel-in-progress: false
+# Using job-level concurrency groups per environment (dev/prod) to avoid
+# overlapping runs on the same remote state key.
+# concurrency:
+#   group: terraform-${{ github.ref }}
+#   cancel-in-progress: false
 
 env:
   TF_WORKING_DIR: infra/terraform/stacks/app
@@ -48,6 +50,9 @@ jobs:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     environment: dev
+    concurrency:
+      group: terraform-dev
+      cancel-in-progress: true
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -88,14 +93,37 @@ jobs:
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: terraform validate
 
-      - name: Terraform Plan (dev)
+      - name: Terraform Plan (dev) with auto-unlock
         working-directory: ${{ env.TF_WORKING_DIR }}
-        run: terraform plan -var-file=../../environments/dev/terraform.tfvars
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          terraform plan -lock-timeout=5m -var-file=../../environments/dev/terraform.tfvars |& tee plan.out
+          status=${PIPESTATUS[0]}
+          set -e
+          if [ "$status" -ne 0 ]; then
+            if grep -q "Error acquiring the state lock" plan.out; then
+              LOCK_ID=$(awk '/Lock Info:/ {found=1} found && /ID:/ {print $2; exit}' plan.out)
+              if [ -n "$LOCK_ID" ]; then
+                echo "Stale lock detected. Force-unlocking $LOCK_ID ..."
+                terraform force-unlock -force "$LOCK_ID" || true
+                terraform plan -lock-timeout=5m -var-file=../../environments/dev/terraform.tfvars
+              else
+                echo "Could not extract lock ID from Terraform output."; exit 1
+              fi
+            else
+              exit "$status"
+            fi
+          fi
 
   apply-dev:
     if: github.event_name == 'push' && github.ref == 'refs/heads/development'
     runs-on: ubuntu-latest
     environment: dev
+    concurrency:
+      group: terraform-dev
+      cancel-in-progress: false
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -146,9 +174,29 @@ jobs:
             echo "RG not found in Azure — skipping import"
           fi
 
-      - name: Terraform Apply (dev)
+      - name: Terraform Apply (dev) with auto-unlock
         working-directory: ${{ env.TF_WORKING_DIR }}
-        run: terraform apply -auto-approve -var-file=../../environments/dev/terraform.tfvars
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          terraform apply -auto-approve -lock-timeout=5m -var-file=../../environments/dev/terraform.tfvars |& tee apply.out
+          status=${PIPESTATUS[0]}
+          set -e
+          if [ "$status" -ne 0 ]; then
+            if grep -q "Error acquiring the state lock" apply.out; then
+              LOCK_ID=$(awk '/Lock Info:/ {found=1} found && /ID:/ {print $2; exit}' apply.out)
+              if [ -n "$LOCK_ID" ]; then
+                echo "Stale lock detected. Force-unlocking $LOCK_ID ..."
+                terraform force-unlock -force "$LOCK_ID" || true
+                terraform apply -auto-approve -lock-timeout=5m -var-file=../../environments/dev/terraform.tfvars
+              else
+                echo "Could not extract lock ID from Terraform output."; exit 1
+              fi
+            else
+              exit "$status"
+            fi
+          fi
 
       - name: Show Terraform outputs (dev)
         working-directory: ${{ env.TF_WORKING_DIR }}
@@ -166,6 +214,9 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: prod
+    concurrency:
+      group: terraform-prod
+      cancel-in-progress: false
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -198,9 +249,29 @@ jobs:
             -backend-config="container_name=${{ secrets.TFSTATE_CONTAINER }}" \
             -backend-config="key=tripradar-prod.tfstate"
 
-      - name: Terraform Apply (prod)
+      - name: Terraform Apply (prod) with auto-unlock
         working-directory: ${{ env.TF_WORKING_DIR }}
-        run: terraform apply -auto-approve -var-file=../../environments/prod/terraform.tfvars
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          terraform apply -auto-approve -lock-timeout=5m -var-file=../../environments/prod/terraform.tfvars |& tee apply.out
+          status=${PIPESTATUS[0]}
+          set -e
+          if [ "$status" -ne 0 ]; then
+            if grep -q "Error acquiring the state lock" apply.out; then
+              LOCK_ID=$(awk '/Lock Info:/ {found=1} found && /ID:/ {print $2; exit}' apply.out)
+              if [ -n "$LOCK_ID" ]; then
+                echo "Stale lock detected. Force-unlocking $LOCK_ID ..."
+                terraform force-unlock -force "$LOCK_ID" || true
+                terraform apply -auto-approve -lock-timeout=5m -var-file=../../environments/prod/terraform.tfvars
+              else
+                echo "Could not extract lock ID from Terraform output."; exit 1
+              fi
+            else
+              exit "$status"
+            fi
+          fi
 
       - name: Show Terraform outputs (prod)
         working-directory: ${{ env.TF_WORKING_DIR }}
@@ -218,6 +289,9 @@ jobs:
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
+    concurrency:
+      group: terraform-${{ inputs.environment }}
+      cancel-in-progress: false
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -301,12 +375,31 @@ jobs:
           if [ "${{ inputs.jobs_image }}" != "" ]; then echo "TF_VAR_jobs_image=${{ inputs.jobs_image }}" >> $GITHUB_ENV; fi
         shell: bash
 
-      - name: Terraform Apply
+      - name: Terraform Apply (manual) with auto-unlock
         working-directory: ${{ env.TF_WORKING_DIR }}
+        shell: bash
         run: |
+          set -euo pipefail
           TFVARS="../../environments/${{ inputs.environment }}/terraform.tfvars"
           echo "Using tfvars: $TFVARS"
-          terraform apply -auto-approve -var-file="$TFVARS"
+          set +e
+          terraform apply -auto-approve -lock-timeout=5m -var-file="$TFVARS" |& tee apply.out
+          status=${PIPESTATUS[0]}
+          set -e
+          if [ "$status" -ne 0 ]; then
+            if grep -q "Error acquiring the state lock" apply.out; then
+              LOCK_ID=$(awk '/Lock Info:/ {found=1} found && /ID:/ {print $2; exit}' apply.out)
+              if [ -n "$LOCK_ID" ]; then
+                echo "Stale lock detected. Force-unlocking $LOCK_ID ..."
+                terraform force-unlock -force "$LOCK_ID" || true
+                terraform apply -auto-approve -lock-timeout=5m -var-file="$TFVARS"
+              else
+                echo "Could not extract lock ID from Terraform output."; exit 1
+              fi
+            else
+              exit "$status"
+            fi
+          fi
 
       - name: Show Terraform outputs (manual)
         if: ${{ success() }}
