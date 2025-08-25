@@ -208,6 +208,11 @@ jobs:
           PG_NAME=$(az postgres flexible-server list -g "$RG_NAME" --query "[0].name" -o tsv 2>/dev/null || true)
           if [ -n "$PG_NAME" ]; then
             import_if_needed "azurerm_postgresql_flexible_server.pg[0]" "${SUB}/resourceGroups/${RG_NAME}/providers/Microsoft.DBforPostgreSQL/flexibleServers/${PG_NAME}"
+            # PostgreSQL Database (skip the default 'postgres' DB)
+            DB_NAME=$(az postgres flexible-server db list -g "$RG_NAME" -s "$PG_NAME" --query "[?name!='postgres']|[0].name" -o tsv 2>/dev/null || true)
+            if [ -n "$DB_NAME" ]; then
+              import_if_needed "azurerm_postgresql_flexible_server_database.tripradar[0]" "${SUB}/resourceGroups/${RG_NAME}/providers/Microsoft.DBforPostgreSQL/flexibleServers/${PG_NAME}/databases/${DB_NAME}"
+            fi
           fi
 
           # Managed Identities (api-mi, jobs-mi, db-mi)
@@ -247,6 +252,48 @@ jobs:
           CAE_NAME=$(az containerapp env list -g "$RG_NAME" --query "[0].name" -o tsv 2>/dev/null || true)
           if [ -n "$CAE_NAME" ]; then
             import_if_needed "azurerm_container_app_environment.cae[0]" "${SUB}/resourceGroups/${RG_NAME}/providers/Microsoft.App/managedEnvironments/${CAE_NAME}"
+            # Import Diagnostic Setting for CAE if present and module address exists
+            CAE_ID=$(az containerapp env show -g "$RG_NAME" -n "$CAE_NAME" --query id -o tsv 2>/dev/null || true)
+            if [ -n "$CAE_ID" ]; then
+              import_if_needed "module.diag_cae[0].azurerm_monitor_diagnostic_setting.this" "${CAE_ID}|${CAE_NAME}-diag"
+            fi
+          fi
+
+          # Role Assignments (import existing to avoid 409 conflicts)
+          import_role_if_needed() {
+            local addr="$1"; local scope_id="$2"; local role_name="$3"; local principal_id="$4"
+            if [ -z "$scope_id" ] || [ -z "$principal_id" ]; then return; fi
+            if terraform state list | grep -q "^${addr}$"; then
+              echo "${addr} already in state — skipping"
+              return
+            fi
+            local assignment_id
+            assignment_id=$(az role assignment list --scope "$scope_id" --role "$role_name" --assignee-object-id "$principal_id" --query "[0].id" -o tsv 2>/dev/null || true)
+            if [ -n "$assignment_id" ]; then
+              echo "Importing role assignment ${addr} ..."
+              terraform import -var-file="$VAR_FILE" "$addr" "$assignment_id" || true
+            fi
+          }
+
+          # Resolve IDs for scopes and principals
+          ACR_ID=""; KV_ID=""; MI_API_PRINCIPAL=""; MI_JOBS_PRINCIPAL=""; MI_DB_PRINCIPAL=""
+          if [ -n "$ACR_NAME" ]; then ACR_ID=$(az acr show -g "$RG_NAME" -n "$ACR_NAME" --query id -o tsv 2>/dev/null || true); fi
+          if [ -n "$KV_NAME" ]; then KV_ID=$(az keyvault show -g "$RG_NAME" -n "$KV_NAME" --query id -o tsv 2>/dev/null || true); fi
+          MI_API_PRINCIPAL=$(az identity show -g "$RG_NAME" -n "tripradar-dev-api-mi" --query principalId -o tsv 2>/dev/null || true)
+          MI_JOBS_PRINCIPAL=$(az identity show -g "$RG_NAME" -n "tripradar-dev-jobs-mi" --query principalId -o tsv 2>/dev/null || true)
+          MI_DB_PRINCIPAL=$(az identity show -g "$RG_NAME" -n "tripradar-dev-db-mi" --query principalId -o tsv 2>/dev/null || true)
+
+          # ACR AcrPull role assignments
+          if [ -n "$ACR_ID" ]; then
+            import_role_if_needed "azurerm_role_assignment.api_acr_pull[0]"  "$ACR_ID" "AcrPull" "$MI_API_PRINCIPAL"
+            import_role_if_needed "azurerm_role_assignment.jobs_acr_pull[0]" "$ACR_ID" "AcrPull" "$MI_JOBS_PRINCIPAL"
+            import_role_if_needed "azurerm_role_assignment.db_acr_pull[0]"   "$ACR_ID" "AcrPull" "$MI_DB_PRINCIPAL"
+          fi
+
+          # Key Vault Secrets User role assignments
+          if [ -n "$KV_ID" ]; then
+            import_role_if_needed "azurerm_role_assignment.api_kv_secrets_user[0]"  "$KV_ID" "Key Vault Secrets User" "$MI_API_PRINCIPAL"
+            import_role_if_needed "azurerm_role_assignment.jobs_kv_secrets_user[0]" "$KV_ID" "Key Vault Secrets User" "$MI_JOBS_PRINCIPAL"
           fi
 
       - name: Terraform Apply (dev) with auto-unlock
@@ -364,6 +411,11 @@ jobs:
           PG_NAME=$(az postgres flexible-server list -g "$RG_NAME" --query "[0].name" -o tsv 2>/dev/null || true)
           if [ -n "$PG_NAME" ]; then
             import_if_needed "azurerm_postgresql_flexible_server.pg[0]" "${SUB}/resourceGroups/${RG_NAME}/providers/Microsoft.DBforPostgreSQL/flexibleServers/${PG_NAME}"
+            # PostgreSQL Database (skip the default 'postgres' DB)
+            DB_NAME=$(az postgres flexible-server db list -g "$RG_NAME" -s "$PG_NAME" --query "[?name!='postgres']|[0].name" -o tsv 2>/dev/null || true)
+            if [ -n "$DB_NAME" ]; then
+              import_if_needed "azurerm_postgresql_flexible_server_database.tripradar[0]" "${SUB}/resourceGroups/${RG_NAME}/providers/Microsoft.DBforPostgreSQL/flexibleServers/${PG_NAME}/databases/${DB_NAME}"
+            fi
           fi
 
           for suffix in api-mi jobs-mi db-mi; do
@@ -397,6 +449,48 @@ jobs:
           CAE_NAME=$(az containerapp env list -g "$RG_NAME" --query "[0].name" -o tsv 2>/dev/null || true)
           if [ -n "$CAE_NAME" ]; then
             import_if_needed "azurerm_container_app_environment.cae[0]" "${SUB}/resourceGroups/${RG_NAME}/providers/Microsoft.App/managedEnvironments/${CAE_NAME}"
+            # Diagnostic setting for CAE
+            CAE_ID=$(az containerapp env show -g "$RG_NAME" -n "$CAE_NAME" --query id -o tsv 2>/dev/null || true)
+            if [ -n "$CAE_ID" ]; then
+              import_if_needed "module.diag_cae[0].azurerm_monitor_diagnostic_setting.this" "${CAE_ID}|${CAE_NAME}-diag"
+            fi
+          fi
+
+          # Role Assignments (prod) — import existing to avoid 409 conflicts
+          import_role_if_needed() {
+            local addr="$1"; local scope_id="$2"; local role_name="$3"; local principal_id="$4"
+            if [ -z "$scope_id" ] || [ -z "$principal_id" ]; then return; fi
+            if terraform state list | grep -q "^${addr}$"; then
+              echo "${addr} already in state — skipping"
+              return
+            fi
+            local assignment_id
+            assignment_id=$(az role assignment list --scope "$scope_id" --role "$role_name" --assignee-object-id "$principal_id" --query "[0].id" -o tsv 2>/dev/null || true)
+            if [ -n "$assignment_id" ]; then
+              echo "Importing role assignment ${addr} ..."
+              terraform import -var-file="$VAR_FILE" "$addr" "$assignment_id" || true
+            fi
+          }
+
+          # Resolve IDs for scopes and principals (prod)
+          ACR_ID=""; KV_ID=""; MI_API_PRINCIPAL=""; MI_JOBS_PRINCIPAL=""; MI_DB_PRINCIPAL=""
+          if [ -n "$ACR_NAME" ]; then ACR_ID=$(az acr show -g "$RG_NAME" -n "$ACR_NAME" --query id -o tsv 2>/dev/null || true); fi
+          if [ -n "$KV_NAME" ]; then KV_ID=$(az keyvault show -g "$RG_NAME" -n "$KV_NAME" --query id -o tsv 2>/dev/null || true); fi
+          MI_API_PRINCIPAL=$(az identity show -g "$RG_NAME" -n "tripradar-prod-api-mi" --query principalId -o tsv 2>/dev/null || true)
+          MI_JOBS_PRINCIPAL=$(az identity show -g "$RG_NAME" -n "tripradar-prod-jobs-mi" --query principalId -o tsv 2>/dev/null || true)
+          MI_DB_PRINCIPAL=$(az identity show -g "$RG_NAME" -n "tripradar-prod-db-mi" --query principalId -o tsv 2>/dev/null || true)
+
+          # ACR AcrPull role assignments
+          if [ -n "$ACR_ID" ]; then
+            import_role_if_needed "azurerm_role_assignment.api_acr_pull[0]"  "$ACR_ID" "AcrPull" "$MI_API_PRINCIPAL"
+            import_role_if_needed "azurerm_role_assignment.jobs_acr_pull[0]" "$ACR_ID" "AcrPull" "$MI_JOBS_PRINCIPAL"
+            import_role_if_needed "azurerm_role_assignment.db_acr_pull[0]"   "$ACR_ID" "AcrPull" "$MI_DB_PRINCIPAL"
+          fi
+
+          # Key Vault Secrets User role assignments
+          if [ -n "$KV_ID" ]; then
+            import_role_if_needed "azurerm_role_assignment.api_kv_secrets_user[0]"  "$KV_ID" "Key Vault Secrets User" "$MI_API_PRINCIPAL"
+            import_role_if_needed "azurerm_role_assignment.jobs_kv_secrets_user[0]" "$KV_ID" "Key Vault Secrets User" "$MI_JOBS_PRINCIPAL"
           fi
 
       - name: Terraform Apply (prod) with auto-unlock
@@ -542,6 +636,11 @@ jobs:
           PG_NAME=$(az postgres flexible-server list -g "$RG_NAME" --query "[0].name" -o tsv 2>/dev/null || true)
           if [ -n "$PG_NAME" ]; then
             import_if_needed "azurerm_postgresql_flexible_server.pg[0]" "${SUB}/resourceGroups/${RG_NAME}/providers/Microsoft.DBforPostgreSQL/flexibleServers/${PG_NAME}"
+            # PostgreSQL Database (skip the default 'postgres' DB)
+            DB_NAME=$(az postgres flexible-server db list -g "$RG_NAME" -s "$PG_NAME" --query "[?name!='postgres']|[0].name" -o tsv 2>/dev/null || true)
+            if [ -n "$DB_NAME" ]; then
+              import_if_needed "azurerm_postgresql_flexible_server_database.tripradar[0]" "${SUB}/resourceGroups/${RG_NAME}/providers/Microsoft.DBforPostgreSQL/flexibleServers/${PG_NAME}/databases/${DB_NAME}"
+            fi
           fi
 
           for suffix in api-mi jobs-mi db-mi; do
@@ -575,6 +674,48 @@ jobs:
           CAE_NAME=$(az containerapp env list -g "$RG_NAME" --query "[0].name" -o tsv 2>/dev/null || true)
           if [ -n "$CAE_NAME" ]; then
             import_if_needed "azurerm_container_app_environment.cae[0]" "${SUB}/resourceGroups/${RG_NAME}/providers/Microsoft.App/managedEnvironments/${CAE_NAME}"
+            # Diagnostic setting for CAE
+            CAE_ID=$(az containerapp env show -g "$RG_NAME" -n "$CAE_NAME" --query id -o tsv 2>/dev/null || true)
+            if [ -n "$CAE_ID" ]; then
+              import_if_needed "module.diag_cae[0].azurerm_monitor_diagnostic_setting.this" "${CAE_ID}|${CAE_NAME}-diag"
+            fi
+          fi
+
+          # Role Assignments (manual dev)
+          import_role_if_needed() {
+            local addr="$1"; local scope_id="$2"; local role_name="$3"; local principal_id="$4"
+            if [ -z "$scope_id" ] || [ -z "$principal_id" ]; then return; fi
+            if terraform state list | grep -q "^${addr}$"; then
+              echo "${addr} already in state — skipping"
+              return
+            fi
+            local assignment_id
+            assignment_id=$(az role assignment list --scope "$scope_id" --role "$role_name" --assignee-object-id "$principal_id" --query "[0].id" -o tsv 2>/dev/null || true)
+            if [ -n "$assignment_id" ]; then
+              echo "Importing role assignment ${addr} ..."
+              terraform import -var-file="$VAR_FILE" "$addr" "$assignment_id" || true
+            fi
+          }
+
+          # Resolve IDs for scopes and principals (dev)
+          ACR_ID=""; KV_ID=""; MI_API_PRINCIPAL=""; MI_JOBS_PRINCIPAL=""; MI_DB_PRINCIPAL=""
+          if [ -n "$ACR_NAME" ]; then ACR_ID=$(az acr show -g "$RG_NAME" -n "$ACR_NAME" --query id -o tsv 2>/dev/null || true); fi
+          if [ -n "$KV_NAME" ]; then KV_ID=$(az keyvault show -g "$RG_NAME" -n "$KV_NAME" --query id -o tsv 2>/dev/null || true); fi
+          MI_API_PRINCIPAL=$(az identity show -g "$RG_NAME" -n "tripradar-dev-api-mi" --query principalId -o tsv 2>/dev/null || true)
+          MI_JOBS_PRINCIPAL=$(az identity show -g "$RG_NAME" -n "tripradar-dev-jobs-mi" --query principalId -o tsv 2>/dev/null || true)
+          MI_DB_PRINCIPAL=$(az identity show -g "$RG_NAME" -n "tripradar-dev-db-mi" --query principalId -o tsv 2>/dev/null || true)
+
+          # ACR AcrPull role assignments
+          if [ -n "$ACR_ID" ]; then
+            import_role_if_needed "azurerm_role_assignment.api_acr_pull[0]"  "$ACR_ID" "AcrPull" "$MI_API_PRINCIPAL"
+            import_role_if_needed "azurerm_role_assignment.jobs_acr_pull[0]" "$ACR_ID" "AcrPull" "$MI_JOBS_PRINCIPAL"
+            import_role_if_needed "azurerm_role_assignment.db_acr_pull[0]"   "$ACR_ID" "AcrPull" "$MI_DB_PRINCIPAL"
+          fi
+
+          # Key Vault Secrets User role assignments
+          if [ -n "$KV_ID" ]; then
+            import_role_if_needed "azurerm_role_assignment.api_kv_secrets_user[0]"  "$KV_ID" "Key Vault Secrets User" "$MI_API_PRINCIPAL"
+            import_role_if_needed "azurerm_role_assignment.jobs_kv_secrets_user[0]" "$KV_ID" "Key Vault Secrets User" "$MI_JOBS_PRINCIPAL"
           fi
 
       - name: Idempotent import of existing Resource Group (manual prod)
@@ -620,6 +761,11 @@ jobs:
           PG_NAME=$(az postgres flexible-server list -g "$RG_NAME" --query "[0].name" -o tsv 2>/dev/null || true)
           if [ -n "$PG_NAME" ]; then
             import_if_needed "azurerm_postgresql_flexible_server.pg[0]" "${SUB}/resourceGroups/${RG_NAME}/providers/Microsoft.DBforPostgreSQL/flexibleServers/${PG_NAME}"
+            # PostgreSQL Database (skip the default 'postgres' DB)
+            DB_NAME=$(az postgres flexible-server db list -g "$RG_NAME" -s "$PG_NAME" --query "[?name!='postgres']|[0].name" -o tsv 2>/dev/null || true)
+            if [ -n "$DB_NAME" ]; then
+              import_if_needed "azurerm_postgresql_flexible_server_database.tripradar[0]" "${SUB}/resourceGroups/${RG_NAME}/providers/Microsoft.DBforPostgreSQL/flexibleServers/${PG_NAME}/databases/${DB_NAME}"
+            fi
           fi
 
           for suffix in api-mi jobs-mi db-mi; do
@@ -653,6 +799,48 @@ jobs:
           CAE_NAME=$(az containerapp env list -g "$RG_NAME" --query "[0].name" -o tsv 2>/dev/null || true)
           if [ -n "$CAE_NAME" ]; then
             import_if_needed "azurerm_container_app_environment.cae[0]" "${SUB}/resourceGroups/${RG_NAME}/providers/Microsoft.App/managedEnvironments/${CAE_NAME}"
+            # Diagnostic setting for CAE
+            CAE_ID=$(az containerapp env show -g "$RG_NAME" -n "$CAE_NAME" --query id -o tsv 2>/dev/null || true)
+            if [ -n "$CAE_ID" ]; then
+              import_if_needed "module.diag_cae[0].azurerm_monitor_diagnostic_setting.this" "${CAE_ID}|${CAE_NAME}-diag"
+            fi
+          fi
+
+          # Role Assignments (manual prod) — import existing to avoid 409 conflicts
+          import_role_if_needed() {
+            local addr="$1"; local scope_id="$2"; local role_name="$3"; local principal_id="$4"
+            if [ -z "$scope_id" ] || [ -z "$principal_id" ]; then return; fi
+            if terraform state list | grep -q "^${addr}$"; then
+              echo "${addr} already in state — skipping"
+              return
+            fi
+            local assignment_id
+            assignment_id=$(az role assignment list --scope "$scope_id" --role "$role_name" --assignee-object-id "$principal_id" --query "[0].id" -o tsv 2>/dev/null || true)
+            if [ -n "$assignment_id" ]; then
+              echo "Importing role assignment ${addr} ..."
+              terraform import -var-file="$VAR_FILE" "$addr" "$assignment_id" || true
+            fi
+          }
+
+          # Resolve IDs for scopes and principals (prod)
+          ACR_ID=""; KV_ID=""; MI_API_PRINCIPAL=""; MI_JOBS_PRINCIPAL=""; MI_DB_PRINCIPAL=""
+          if [ -n "$ACR_NAME" ]; then ACR_ID=$(az acr show -g "$RG_NAME" -n "$ACR_NAME" --query id -o tsv 2>/dev/null || true); fi
+          if [ -n "$KV_NAME" ]; then KV_ID=$(az keyvault show -g "$RG_NAME" -n "$KV_NAME" --query id -o tsv 2>/dev/null || true); fi
+          MI_API_PRINCIPAL=$(az identity show -g "$RG_NAME" -n "tripradar-prod-api-mi" --query principalId -o tsv 2>/dev/null || true)
+          MI_JOBS_PRINCIPAL=$(az identity show -g "$RG_NAME" -n "tripradar-prod-jobs-mi" --query principalId -o tsv 2>/dev/null || true)
+          MI_DB_PRINCIPAL=$(az identity show -g "$RG_NAME" -n "tripradar-prod-db-mi" --query principalId -o tsv 2>/dev/null || true)
+
+          # ACR AcrPull role assignments
+          if [ -n "$ACR_ID" ]; then
+            import_role_if_needed "azurerm_role_assignment.api_acr_pull[0]"  "$ACR_ID" "AcrPull" "$MI_API_PRINCIPAL"
+            import_role_if_needed "azurerm_role_assignment.jobs_acr_pull[0]" "$ACR_ID" "AcrPull" "$MI_JOBS_PRINCIPAL"
+            import_role_if_needed "azurerm_role_assignment.db_acr_pull[0]"   "$ACR_ID" "AcrPull" "$MI_DB_PRINCIPAL"
+          fi
+
+          # Key Vault Secrets User role assignments
+          if [ -n "$KV_ID" ]; then
+            import_role_if_needed "azurerm_role_assignment.api_kv_secrets_user[0]"  "$KV_ID" "Key Vault Secrets User" "$MI_API_PRINCIPAL"
+            import_role_if_needed "azurerm_role_assignment.jobs_kv_secrets_user[0]" "$KV_ID" "Key Vault Secrets User" "$MI_JOBS_PRINCIPAL"
           fi
 
       - name: Prepare TF VARs (images)
