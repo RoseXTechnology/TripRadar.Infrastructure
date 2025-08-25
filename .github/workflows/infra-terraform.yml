@@ -119,7 +119,7 @@ jobs:
       contents: read
     outputs:
       backend_configured: ${{ steps.backend.outputs.configured }}
-      
+    
     steps:
       - name: 🔄 Checkout Repository
         uses: actions/checkout@v4
@@ -129,9 +129,9 @@ jobs:
       - name: 🔐 Authenticate with Azure (OIDC)
         uses: azure/login@v2
         with:
-          client-id: ${{ env.ARM_CLIENT_ID }}
-          tenant-id: ${{ env.ARM_TENANT_ID }}
-          subscription-id: ${{ env.ARM_SUBSCRIPTION_ID }}
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           
       - name: 🔍 Validate Azure Connectivity
         run: |
@@ -147,8 +147,8 @@ jobs:
           echo "✅ Authenticated to subscription: $SUBSCRIPTION_ID"
           
           # Validate subscription matches expected
-          if [[ "$SUBSCRIPTION_ID" != "${{ env.ARM_SUBSCRIPTION_ID }}" ]]; then
-            echo "❌ Subscription mismatch. Expected: ${{ env.ARM_SUBSCRIPTION_ID }}, Got: $SUBSCRIPTION_ID"
+          if [[ "$SUBSCRIPTION_ID" != "${{ secrets.AZURE_SUBSCRIPTION_ID }}" ]]; then
+            echo "❌ Subscription mismatch. Expected: ${{ secrets.AZURE_SUBSCRIPTION_ID }}, Got: $SUBSCRIPTION_ID"
             exit 1
           fi
           
@@ -242,9 +242,9 @@ jobs:
       - name: 🔐 Authenticate with Azure (OIDC)
         uses: azure/login@v2
         with:
-          client-id: ${{ env.ARM_CLIENT_ID }}
-          tenant-id: ${{ env.ARM_TENANT_ID }}
-          subscription-id: ${{ env.ARM_SUBSCRIPTION_ID }}
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           
       - name: ⚙️ Initialize Terraform Backend
         working-directory: ${{ env.TF_WORKING_DIR }}
@@ -282,7 +282,7 @@ jobs:
                   echo "✅ Importing application database: $APP_DB_NAME"
                   terraform import -var-file="${{ env.TF_VAR_FILE }}" \
                     "module.app.azurerm_postgresql_flexible_server_database.tripradar[0]" \
-                    "/subscriptions/${{ env.ARM_SUBSCRIPTION_ID }}/resourceGroups/${RG_NAME}/providers/Microsoft.DBforPostgreSQL/flexibleServers/${PG_NAME}/databases/${APP_DB_NAME}" || true
+                                         "/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/${RG_NAME}/providers/Microsoft.DBforPostgreSQL/flexibleServers/${PG_NAME}/databases/${APP_DB_NAME}" || true
                 fi
               fi
             else
@@ -296,7 +296,7 @@ jobs:
           echo "📥 Importing existing Azure resources to prevent conflicts..."
           
           RG_NAME="${{ needs.validate-environment.outputs.resource_group_name }}"
-          SUB="/subscriptions/${{ env.ARM_SUBSCRIPTION_ID }}"
+                     SUB="/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}"
           VAR_FILE="${{ env.TF_VAR_FILE }}"
           
           # Reusable import function with error handling
@@ -418,7 +418,7 @@ jobs:
           echo "✅ Validating Terraform configuration..."
           terraform validate -no-color
           echo "✅ Terraform configuration is valid"
-          
+
       - name: 📋 Terraform Plan
         if: inputs.action == 'plan' || inputs.action == 'apply'
         id: plan
@@ -555,7 +555,7 @@ jobs:
             echo "### 📋 Next Steps"
             if [[ "${{ inputs.environment }}" == "dev" && -n "$API_URL" ]]; then
               echo "- 🧪 Test your API using Postman: \`TripRadar Dev Azure Environment\`"
-              echo "- 📊 Monitor application: [Azure Portal](https://portal.azure.com/#@/resource/subscriptions/${{ env.ARM_SUBSCRIPTION_ID }}/resourceGroups/${{ needs.validate-environment.outputs.resource_group_name }})"
+                             echo "- 📊 Monitor application: [Azure Portal](https://portal.azure.com/#@/resource/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/${{ needs.validate-environment.outputs.resource_group_name }})"
             fi
           } >> $GITHUB_STEP_SUMMARY
           
