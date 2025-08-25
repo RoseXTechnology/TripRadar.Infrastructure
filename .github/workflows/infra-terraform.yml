@@ -31,61 +31,8 @@ on:
         description: 'Optional: Full image ref for Jobs (e.g., myacr.azurecr.io/tripradar/jobs:sha)'
         required: false
         type: string
-      # Optional overrides for edge/private endpoints/VPN
-      fd_custom_domain:
-        description: 'Front Door custom domain (e.g., api.dev.example.com)'
-        required: false
-        type: string
-      fd_waf_enable:
-        description: 'Enable Front Door WAF policy'
-        required: false
-        default: false
-        type: boolean
-      enable_private_endpoints:
-        description: 'Enable Private Endpoints'
-        required: false
-        default: false
-        type: boolean
-      subnet_cae_cidr:
-        description: 'CIDR for CAE subnet (e.g., 10.100.0.0/23)'
-        required: false
-        type: string
-      subnet_private_endpoints_cidr:
-        description: 'CIDR for Private Endpoints subnet (e.g., 10.100.3.0/24)'
-        required: false
-        type: string
-      subnet_gateway_cidr:
-        description: 'CIDR for GatewaySubnet (e.g., 10.100.254.0/27)'
-        required: false
-        type: string
-      enable_vpn:
-        description: 'Enable Virtual Network Gateway'
-        required: false
-        default: false
-        type: boolean
-      vpn_sku:
-        description: 'VPN Gateway SKU (e.g., VpnGw1)'
-        required: false
-        type: string
-      vpn_type:
-        description: 'VPN type (RouteBased or PolicyBased)'
-        required: false
-        type: string
-      vpn_gateway_generation:
-        description: 'VPN Gateway generation (Generation1 or Generation2)'
-        required: false
-        type: string
-      enable_vpn_connection:
-        description: 'Create S2S VPN connection'
-        required: false
-        default: false
-        type: boolean
-      local_network_gateway_address:
-        description: 'On-prem VPN public IP'
-        required: false
-        type: string
-      local_network_address_space:
-        description: 'On-prem CIDRs (comma-separated or JSON list, e.g. 10.0.0.0/16,10.1.0.0/16 or ["10.0.0.0/16"])'
+      overrides:
+        description: 'JSON overrides for edge/PE/VPN (e.g., {"fd_custom_domain":"api.dev.example.com","fd_waf_enable":true,"enable_private_endpoints":false,"subnet_cae_cidr":"10.100.0.0/23","subnet_private_endpoints_cidr":"10.100.3.0/24","subnet_gateway_cidr":"10.100.254.0/27","enable_vpn":false,"vpn_sku":"VpnGw1","vpn_type":"RouteBased","vpn_gateway_generation":"Generation1","enable_vpn_connection":false,"local_network_gateway_address":"1.2.3.4","local_network_address_space":["10.0.0.0/16"]})'
         required: false
         type: string
       lock_id:
@@ -939,39 +886,32 @@ jobs:
       - name: Prepare TF VARs (edge/pe/vpn overrides)
         run: |
           set -euo pipefail
-          set +u
-          # Edge / Front Door
-          if [ "${{ inputs.fd_custom_domain }}" != "" ]; then echo "TF_VAR_fd_custom_domain=${{ inputs.fd_custom_domain }}" >> $GITHUB_ENV; fi
-          if [ "${{ inputs.fd_waf_enable }}" == "true" ]; then echo "TF_VAR_fd_waf_enable=true" >> $GITHUB_ENV; fi
-          # Private Endpoints / Networking
-          if [ "${{ inputs.enable_private_endpoints }}" == "true" ]; then echo "TF_VAR_enable_private_endpoints=true" >> $GITHUB_ENV; fi
-          if [ "${{ inputs.subnet_cae_cidr }}" != "" ]; then echo "TF_VAR_subnet_cae_cidr=${{ inputs.subnet_cae_cidr }}" >> $GITHUB_ENV; fi
-          if [ "${{ inputs.subnet_private_endpoints_cidr }}" != "" ]; then echo "TF_VAR_subnet_private_endpoints_cidr=${{ inputs.subnet_private_endpoints_cidr }}" >> $GITHUB_ENV; fi
-          if [ "${{ inputs.subnet_gateway_cidr }}" != "" ]; then echo "TF_VAR_subnet_gateway_cidr=${{ inputs.subnet_gateway_cidr }}" >> $GITHUB_ENV; fi
-          # VPN
-          if [ "${{ inputs.enable_vpn }}" == "true" ]; then echo "TF_VAR_enable_vpn=true" >> $GITHUB_ENV; fi
-          if [ "${{ inputs.vpn_sku }}" != "" ]; then echo "TF_VAR_vpn_sku=${{ inputs.vpn_sku }}" >> $GITHUB_ENV; fi
-          if [ "${{ inputs.vpn_type }}" != "" ]; then echo "TF_VAR_vpn_type=${{ inputs.vpn_type }}" >> $GITHUB_ENV; fi
-          if [ "${{ inputs.vpn_gateway_generation }}" != "" ]; then echo "TF_VAR_vpn_gateway_generation=${{ inputs.vpn_gateway_generation }}" >> $GITHUB_ENV; fi
-          if [ "${{ inputs.enable_vpn_connection }}" == "true" ]; then echo "TF_VAR_enable_vpn_connection=true" >> $GITHUB_ENV; fi
-          if [ "${{ inputs.local_network_gateway_address }}" != "" ]; then echo "TF_VAR_local_network_gateway_address=${{ inputs.local_network_gateway_address }}" >> $GITHUB_ENV; fi
-          if [ "${{ inputs.local_network_address_space }}" != "" ]; then
-            RAW="${{ inputs.local_network_address_space }}"
-            if [[ "$RAW" == \[*\] ]]; then
-              echo "TF_VAR_local_network_address_space=$RAW" >> $GITHUB_ENV
-            else
-              IFS=',' read -ra arr <<< "$RAW"
-              json="["
-              sep=""
-              for cidr in "${arr[@]}"; do
-                cidr_trim=$(echo "$cidr" | xargs)
-                [ -z "$cidr_trim" ] && continue
-                json+="$sep\"$cidr_trim\""
-                sep=",";
-              done
-              json+="]"
-              echo "TF_VAR_local_network_address_space=$json" >> $GITHUB_ENV
-            fi
+          if [ -n "${{ inputs.overrides }}" ]; then
+            OVERRIDES='${{ inputs.overrides }}'
+            # Validate JSON
+            echo "$OVERRIDES" | jq -e . >/dev/null 2>&1 || { echo "overrides is not valid JSON"; exit 1; }
+
+            get_str() { echo "$OVERRIDES" | jq -r "$1 // empty"; }
+            get_bool() { echo "$OVERRIDES" | jq -r "$1 // empty"; }
+
+            # Edge / Front Door
+            val=$(get_str '.fd_custom_domain'); [ -n "$val" ] && echo "TF_VAR_fd_custom_domain=$val" >> $GITHUB_ENV
+            b=$(get_bool '.fd_waf_enable'); [ "$b" = "true" ] && echo "TF_VAR_fd_waf_enable=true" >> $GITHUB_ENV
+
+            # Private Endpoints / Networking
+            b=$(get_bool '.enable_private_endpoints'); [ "$b" = "true" ] && echo "TF_VAR_enable_private_endpoints=true" >> $GITHUB_ENV
+            val=$(get_str '.subnet_cae_cidr'); [ -n "$val" ] && echo "TF_VAR_subnet_cae_cidr=$val" >> $GITHUB_ENV
+            val=$(get_str '.subnet_private_endpoints_cidr'); [ -n "$val" ] && echo "TF_VAR_subnet_private_endpoints_cidr=$val" >> $GITHUB_ENV
+            val=$(get_str '.subnet_gateway_cidr'); [ -n "$val" ] && echo "TF_VAR_subnet_gateway_cidr=$val" >> $GITHUB_ENV
+
+            # VPN
+            b=$(get_bool '.enable_vpn'); [ "$b" = "true" ] && echo "TF_VAR_enable_vpn=true" >> $GITHUB_ENV
+            val=$(get_str '.vpn_sku'); [ -n "$val" ] && echo "TF_VAR_vpn_sku=$val" >> $GITHUB_ENV
+            val=$(get_str '.vpn_type'); [ -n "$val" ] && echo "TF_VAR_vpn_type=$val" >> $GITHUB_ENV
+            val=$(get_str '.vpn_gateway_generation'); [ -n "$val" ] && echo "TF_VAR_vpn_gateway_generation=$val" >> $GITHUB_ENV
+            b=$(get_bool '.enable_vpn_connection'); [ "$b" = "true" ] && echo "TF_VAR_enable_vpn_connection=true" >> $GITHUB_ENV
+            val=$(get_str '.local_network_gateway_address'); [ -n "$val" ] && echo "TF_VAR_local_network_gateway_address=$val" >> $GITHUB_ENV
+            arr=$(echo "$OVERRIDES" | jq -c '.local_network_address_space // empty'); [ -n "$arr" ] && echo "TF_VAR_local_network_address_space=$arr" >> $GITHUB_ENV
           fi
         shell: bash
 
