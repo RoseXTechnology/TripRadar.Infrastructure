@@ -42,6 +42,13 @@ jobs:
         with:
           terraform_version: "1.9.8"
 
+      - name: Validate required Azure secrets
+        run: |
+          test "${{ secrets.AZURE_CLIENT_ID != '' }}" = "true" || (echo "AZURE_CLIENT_ID is missing in repository or environment secrets" && exit 1)
+          test "${{ secrets.AZURE_CLIENT_SECRET != '' }}" = "true" || (echo "AZURE_CLIENT_SECRET is missing in repository or environment secrets" && exit 1)
+          test "${{ secrets.AZURE_TENANT_ID != '' }}" = "true" || (echo "AZURE_TENANT_ID is missing in repository or environment secrets" && exit 1)
+          test "${{ secrets.AZURE_SUBSCRIPTION_ID != '' }}" = "true" || (echo "AZURE_SUBSCRIPTION_ID is missing in repository or environment secrets" && exit 1)
+
       - name: Azure CLI Login
         uses: azure/login@v2
         with:
