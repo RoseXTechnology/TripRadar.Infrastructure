@@ -126,6 +126,28 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      
+      - name: 🔎 Validate OIDC Secrets Availability
+        run: |
+          echo "🔎 Validating presence of required Azure OIDC secrets..."
+          MISSING=0
+          if [ -z "${{ secrets.AZURE_CLIENT_ID }}" ]; then
+            echo "❌ Missing secret: AZURE_CLIENT_ID (environment: ${{ inputs.environment }})" >&2
+            MISSING=1
+          fi
+          if [ -z "${{ secrets.AZURE_TENANT_ID }}" ]; then
+            echo "❌ Missing secret: AZURE_TENANT_ID (environment: ${{ inputs.environment }})" >&2
+            MISSING=1
+          fi
+          if [ -z "${{ secrets.AZURE_SUBSCRIPTION_ID }}" ]; then
+            echo "❌ Missing secret: AZURE_SUBSCRIPTION_ID (environment: ${{ inputs.environment }})" >&2
+            MISSING=1
+          fi
+          if [ "$MISSING" -ne 0 ]; then
+            echo "💡 Ensure these are defined as Environment secrets for '${{ inputs.environment }}' or at repository level."
+            echo "💡 For OIDC, also verify the Federated Credential exists for the app registration (client-id) in Entra ID."
+            exit 1
+          fi
           
       - name: 🔐 Authenticate with Azure (OIDC)
         uses: azure/login@v2
@@ -234,6 +256,28 @@ jobs:
         with:
           fetch-depth: 0
           
+      - name: 🔎 Validate OIDC Secrets Availability
+        run: |
+          echo "🔎 Validating presence of required Azure OIDC secrets..."
+          MISSING=0
+          if [ -z "${{ secrets.AZURE_CLIENT_ID }}" ]; then
+            echo "❌ Missing secret: AZURE_CLIENT_ID (environment: ${{ inputs.environment }})" >&2
+            MISSING=1
+          fi
+          if [ -z "${{ secrets.AZURE_TENANT_ID }}" ]; then
+            echo "❌ Missing secret: AZURE_TENANT_ID (environment: ${{ inputs.environment }})" >&2
+            MISSING=1
+          fi
+          if [ -z "${{ secrets.AZURE_SUBSCRIPTION_ID }}" ]; then
+            echo "❌ Missing secret: AZURE_SUBSCRIPTION_ID (environment: ${{ inputs.environment }})" >&2
+            MISSING=1
+          fi
+          if [ "$MISSING" -ne 0 ]; then
+            echo "💡 Ensure these are defined as Environment secrets for '${{ inputs.environment }}' or at repository level."
+            echo "💡 For OIDC, also verify the Federated Credential exists for the app registration (client-id) in Entra ID."
+            exit 1
+          fi
+
       - name: 🔧 Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
