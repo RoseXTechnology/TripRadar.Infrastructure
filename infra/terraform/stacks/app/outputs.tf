@@ -116,3 +116,115 @@ output "dns_records_required" {
   } : null
 }
 
+# --- Front Door outputs ---
+output "frontdoor_profile_id" {
+  value       = try(azurerm_cdn_frontdoor_profile.fd[0].id, null)
+  description = "Front Door profile resource id"
+}
+
+output "frontdoor_endpoint_hostname" {
+  value       = try(azurerm_cdn_frontdoor_endpoint.fd[0].host_name, null)
+  description = "Front Door endpoint hostname"
+}
+
+output "frontdoor_endpoint_url" {
+  value       = try(format("https://%s", azurerm_cdn_frontdoor_endpoint.fd[0].host_name), null)
+  description = "Front Door public URL"
+}
+
+# --- Event Hubs outputs ---
+output "event_hubs_namespace_name" {
+  value       = try(azurerm_eventhub_namespace.eh[0].name, null)
+  description = "Event Hubs namespace name"
+}
+
+output "event_hub_name" {
+  value       = try(azurerm_eventhub.hub[0].name, null)
+  description = "Event Hub name"
+}
+
+output "event_hubs_send_connection_string" {
+  value       = try(azurerm_eventhub_namespace_authorization_rule.send[0].primary_connection_string, null)
+  description = "Event Hubs send (producer) connection string"
+  sensitive   = true
+}
+
+output "event_hubs_listen_connection_string" {
+  value       = try(azurerm_eventhub_authorization_rule.hub_listen[0].primary_connection_string, null)
+  description = "Event Hubs listen (consumer) connection string"
+  sensitive   = true
+}
+
+output "event_hubs_kafka_bootstrap" {
+  value       = try(local.event_hubs_kafka_bootstrap, null)
+  description = "Kafka bootstrap server for Event Hubs"
+}
+
+
+# --- VPN outputs ---
+output "vnet_gateway_id" {
+  value       = try(azurerm_virtual_network_gateway.vpngw[0].id, null)
+  description = "Virtual Network Gateway resource id"
+}
+
+output "vnet_gateway_public_ip" {
+  value       = try(azurerm_public_ip.vpngw[0].ip_address, null)
+  description = "Virtual Network Gateway public IP address"
+}
+
+output "vpn_connection_id" {
+  value       = try(azurerm_virtual_network_gateway_connection.s2s[0].id, null)
+  description = "VPN S2S connection resource id"
+}
+
+output "local_network_gateway_id" {
+  value       = try(azurerm_local_network_gateway.onprem[0].id, null)
+  description = "Local Network Gateway (on-prem) resource id"
+}
+
+# --- Private Link / DNS outputs ---
+output "private_dns_zone_kv" {
+  value       = try(azurerm_private_dns_zone.kv[0].name, null)
+  description = "Private DNS Zone name for Key Vault"
+}
+
+output "private_dns_zone_eh" {
+  value       = try(azurerm_private_dns_zone.eh[0].name, null)
+  description = "Private DNS Zone name for Event Hubs"
+}
+
+output "private_dns_zone_pg" {
+  value       = try(azurerm_private_dns_zone.pg[0].name, null)
+  description = "Private DNS Zone name for PostgreSQL Flexible Server"
+}
+
+output "pe_key_vault_id" {
+  value       = try(azurerm_private_endpoint.kv[0].id, null)
+  description = "Private Endpoint id for Key Vault"
+}
+
+output "pe_event_hubs_id" {
+  value       = try(azurerm_private_endpoint.eh[0].id, null)
+  description = "Private Endpoint id for Event Hubs"
+}
+
+output "pe_postgres_id" {
+  value       = try(azurerm_private_endpoint.pg[0].id, null)
+  description = "Private Endpoint id for PostgreSQL Flexible Server"
+}
+
+# --- Front Door custom domain / WAF outputs ---
+output "frontdoor_custom_domain" {
+  value       = try(azurerm_cdn_frontdoor_custom_domain.api[0].host_name, null)
+  description = "Front Door custom domain hostname (if configured)"
+}
+
+output "frontdoor_waf_policy_id" {
+  value       = try(azurerm_cdn_frontdoor_firewall_policy.fd[0].id, null)
+  description = "Front Door WAF firewall policy id (if enabled)"
+}
+
+output "frontdoor_security_policy_id" {
+  value       = try(azurerm_cdn_frontdoor_security_policy.fd[0].id, null)
+  description = "Front Door security policy id (association)"
+}

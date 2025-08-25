@@ -37,3 +37,24 @@ resource "azurerm_subnet" "subnet_data" {
   address_prefixes     = [var.subnet_data_cidr]
 }
 
+
+# Subnet for Private Endpoints
+resource "azurerm_subnet" "subnet_private_endpoints" {
+  count                = var.enable_vnet ? 1 : 0
+  name                 = "privatelink"
+  resource_group_name  = azurerm_resource_group.rg.name
+  virtual_network_name = azurerm_virtual_network.vnet[0].name
+  address_prefixes     = [var.subnet_private_endpoints_cidr]
+
+  private_endpoint_network_policies = "Disabled"
+}
+
+# GatewaySubnet required for Virtual Network Gateway
+resource "azurerm_subnet" "subnet_gateway" {
+  count                = var.enable_vnet ? 1 : 0
+  name                 = "GatewaySubnet"
+  resource_group_name  = azurerm_resource_group.rg.name
+  virtual_network_name = azurerm_virtual_network.vnet[0].name
+  address_prefixes     = [var.subnet_gateway_cidr]
+}
+
