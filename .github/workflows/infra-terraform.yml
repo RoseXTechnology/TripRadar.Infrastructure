@@ -31,6 +31,63 @@ on:
         description: 'Optional: Full image ref for Jobs (e.g., myacr.azurecr.io/tripradar/jobs:sha)'
         required: false
         type: string
+      # Optional overrides for edge/private endpoints/VPN
+      fd_custom_domain:
+        description: 'Front Door custom domain (e.g., api.dev.example.com)'
+        required: false
+        type: string
+      fd_waf_enable:
+        description: 'Enable Front Door WAF policy'
+        required: false
+        default: false
+        type: boolean
+      enable_private_endpoints:
+        description: 'Enable Private Endpoints'
+        required: false
+        default: false
+        type: boolean
+      subnet_cae_cidr:
+        description: 'CIDR for CAE subnet (e.g., 10.100.0.0/23)'
+        required: false
+        type: string
+      subnet_private_endpoints_cidr:
+        description: 'CIDR for Private Endpoints subnet (e.g., 10.100.3.0/24)'
+        required: false
+        type: string
+      subnet_gateway_cidr:
+        description: 'CIDR for GatewaySubnet (e.g., 10.100.254.0/27)'
+        required: false
+        type: string
+      enable_vpn:
+        description: 'Enable Virtual Network Gateway'
+        required: false
+        default: false
+        type: boolean
+      vpn_sku:
+        description: 'VPN Gateway SKU (e.g., VpnGw1)'
+        required: false
+        type: string
+      vpn_type:
+        description: 'VPN type (RouteBased or PolicyBased)'
+        required: false
+        type: string
+      vpn_gateway_generation:
+        description: 'VPN Gateway generation (Generation1 or Generation2)'
+        required: false
+        type: string
+      enable_vpn_connection:
+        description: 'Create S2S VPN connection'
+        required: false
+        default: false
+        type: boolean
+      local_network_gateway_address:
+        description: 'On-prem VPN public IP'
+        required: false
+        type: string
+      local_network_address_space:
+        description: 'On-prem CIDRs (comma-separated or JSON list, e.g. 10.0.0.0/16,10.1.0.0/16 or ["10.0.0.0/16"])'
+        required: false
+        type: string
       lock_id:
         description: 'Optional: Terraform state Lock ID to force-unlock (use with unlock-state job)'
         required: false
@@ -47,6 +104,7 @@ permissions:
 #   cancel-in-progress: false
 
 env:
+  # Global defaults can be overridden at job-level
   TF_WORKING_DIR: infra/terraform/stacks/app
 
 jobs:
@@ -54,6 +112,8 @@ jobs:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     environment: dev
+    env:
+      TF_WORKING_DIR: infra/terraform/environments/dev/app
     concurrency:
       group: terraform-dev
       cancel-in-progress: true
@@ -108,7 +168,7 @@ jobs:
         run: |
           set -euo pipefail
           set +e
-          terraform plan -no-color -lock-timeout=5m -var-file=../../environments/dev/terraform.tfvars |& tee plan.out
+          terraform plan -no-color -lock-timeout=5m -var-file=../terraform.tfvars |& tee plan.out
           status=${PIPESTATUS[0]}
           set -e
           if [ "$status" -ne 0 ]; then
@@ -117,7 +177,7 @@ jobs:
               if [ -n "$LOCK_ID" ]; then
                 echo "Stale lock detected. Force-unlocking $LOCK_ID ..."
                 terraform force-unlock -force "$LOCK_ID" || true
-                terraform plan -no-color -lock-timeout=5m -var-file=../../environments/dev/terraform.tfvars
+                terraform plan -no-color -lock-timeout=5m -var-file=../terraform.tfvars
               else
                 echo "Could not extract lock ID from Terraform output."; exit 1
               fi
@@ -130,6 +190,8 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/development'
     runs-on: ubuntu-latest
     environment: dev
+    env:
+      TF_WORKING_DIR: infra/terraform/environments/dev/app
     concurrency:
       group: terraform-dev
       cancel-in-progress: false
@@ -170,7 +232,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          VAR_FILE=../../environments/dev/terraform.tfvars
+          VAR_FILE=../terraform.tfvars
           ADDR="azurerm_resource_group.rg"
           RG_NAME="tripradar-dev-rg"
           if terraform state list | grep -q "^$ADDR$"; then
@@ -192,7 +254,7 @@ jobs:
           set -euo pipefail
           RG_NAME="tripradar-dev-rg"
           SUB="/subscriptions/${ARM_SUBSCRIPTION_ID}"
-          VAR_FILE=../../environments/dev/terraform.tfvars
+          VAR_FILE=../terraform.tfvars
 
           import_if_needed() {
             local addr="$1"; local rid="$2"
@@ -302,7 +364,7 @@ jobs:
         run: |
           set -euo pipefail
           set +e
-          terraform apply -no-color -auto-approve -lock-timeout=5m -var-file=../../environments/dev/terraform.tfvars |& tee apply.out
+          terraform apply -no-color -auto-approve -lock-timeout=5m -var-file=../terraform.tfvars |& tee apply.out
           status=${PIPESTATUS[0]}
           set -e
           if [ "$status" -ne 0 ]; then
@@ -311,7 +373,7 @@ jobs:
               if [ -n "$LOCK_ID" ]; then
                 echo "Stale lock detected. Force-unlocking $LOCK_ID ..."
                 terraform force-unlock -force "$LOCK_ID" || true
-                terraform apply -no-color -auto-approve -lock-timeout=5m -var-file=../../environments/dev/terraform.tfvars
+                terraform apply -no-color -auto-approve -lock-timeout=5m -var-file=../terraform.tfvars
               else
                 echo "Could not extract lock ID from Terraform output."; exit 1
               fi
@@ -331,11 +393,23 @@ jobs:
             echo "API URL: $API_URL" >> $GITHUB_STEP_SUMMARY
             echo "Open: $API_URL"
           fi
+          FD_URL=$(terraform output -raw frontdoor_endpoint_url 2>/dev/null || true)
+          if [ -n "$FD_URL" ]; then echo "Front Door URL: $FD_URL" >> $GITHUB_STEP_SUMMARY; fi
+          FD_CUSTOM=$(terraform output -raw frontdoor_custom_domain 2>/dev/null || true)
+          if [ -n "$FD_CUSTOM" ]; then echo "Front Door Custom Domain: $FD_CUSTOM" >> $GITHUB_STEP_SUMMARY; fi
+          WAF_ID=$(terraform output -raw frontdoor_waf_policy_id 2>/dev/null || true)
+          if [ -n "$WAF_ID" ]; then echo "Front Door WAF Policy ID: $WAF_ID" >> $GITHUB_STEP_SUMMARY; fi
+          SEC_ID=$(terraform output -raw frontdoor_security_policy_id 2>/dev/null || true)
+          if [ -n "$SEC_ID" ]; then echo "Front Door Security Policy ID: $SEC_ID" >> $GITHUB_STEP_SUMMARY; fi
+          VPN_PIP=$(terraform output -raw vnet_gateway_public_ip 2>/dev/null || true)
+          if [ -n "$VPN_PIP" ]; then echo "VPN Gateway Public IP: $VPN_PIP" >> $GITHUB_STEP_SUMMARY; fi
 
   apply-prod:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: prod
+    env:
+      TF_WORKING_DIR: infra/terraform/environments/prod/app
     concurrency:
       group: terraform-prod
       cancel-in-progress: false
@@ -375,7 +449,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          VAR_FILE=../../environments/prod/terraform.tfvars
+          VAR_FILE=../terraform.tfvars
           ADDR="azurerm_resource_group.rg"
           RG_NAME="tripradar-prod-rg"
           if terraform state list | grep -q "^$ADDR$"; then
@@ -396,7 +470,7 @@ jobs:
           set -euo pipefail
           RG_NAME="tripradar-prod-rg"
           SUB="/subscriptions/${ARM_SUBSCRIPTION_ID}"
-          VAR_FILE=../../environments/prod/terraform.tfvars
+          VAR_FILE=../terraform.tfvars
 
           import_if_needed() {
             local addr="$1"; local rid="$2"
@@ -499,7 +573,7 @@ jobs:
         run: |
           set -euo pipefail
           set +e
-          terraform apply -no-color -auto-approve -lock-timeout=5m -var-file=../../environments/prod/terraform.tfvars |& tee apply.out
+          terraform apply -no-color -auto-approve -lock-timeout=5m -var-file=../terraform.tfvars |& tee apply.out
           status=${PIPESTATUS[0]}
           set -e
           if [ "$status" -ne 0 ]; then
@@ -508,7 +582,7 @@ jobs:
               if [ -n "$LOCK_ID" ]; then
                 echo "Stale lock detected. Force-unlocking $LOCK_ID ..."
                 terraform force-unlock -force "$LOCK_ID" || true
-                terraform apply -no-color -auto-approve -lock-timeout=5m -var-file=../../environments/prod/terraform.tfvars
+                terraform apply -no-color -auto-approve -lock-timeout=5m -var-file=../terraform.tfvars
               else
                 echo "Could not extract lock ID from Terraform output."; exit 1
               fi
@@ -528,11 +602,23 @@ jobs:
             echo "API URL: $API_URL" >> $GITHUB_STEP_SUMMARY
             echo "Open: $API_URL"
           fi
+          FD_URL=$(terraform output -raw frontdoor_endpoint_url 2>/dev/null || true)
+          if [ -n "$FD_URL" ]; then echo "Front Door URL: $FD_URL" >> $GITHUB_STEP_SUMMARY; fi
+          FD_CUSTOM=$(terraform output -raw frontdoor_custom_domain 2>/dev/null || true)
+          if [ -n "$FD_CUSTOM" ]; then echo "Front Door Custom Domain: $FD_CUSTOM" >> $GITHUB_STEP_SUMMARY; fi
+          WAF_ID=$(terraform output -raw frontdoor_waf_policy_id 2>/dev/null || true)
+          if [ -n "$WAF_ID" ]; then echo "Front Door WAF Policy ID: $WAF_ID" >> $GITHUB_STEP_SUMMARY; fi
+          SEC_ID=$(terraform output -raw frontdoor_security_policy_id 2>/dev/null || true)
+          if [ -n "$SEC_ID" ]; then echo "Front Door Security Policy ID: $SEC_ID" >> $GITHUB_STEP_SUMMARY; fi
+          VPN_PIP=$(terraform output -raw vnet_gateway_public_ip 2>/dev/null || true)
+          if [ -n "$VPN_PIP" ]; then echo "VPN Gateway Public IP: $VPN_PIP" >> $GITHUB_STEP_SUMMARY; fi
 
   apply-manual:
     if: github.event_name == 'workflow_dispatch' && (inputs.lock_id == '')
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
+    env:
+      TF_WORKING_DIR: infra/terraform/environments/${{ inputs.environment }}/app
     concurrency:
       group: terraform-${{ inputs.environment }}
       cancel-in-progress: false
@@ -599,7 +685,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          VAR_FILE=../../environments/dev/terraform.tfvars
+          VAR_FILE=../terraform.tfvars
           ADDR="azurerm_resource_group.rg"
           RG_NAME="tripradar-dev-rg"
           if terraform state list | grep -q "^$ADDR$"; then
@@ -621,7 +707,7 @@ jobs:
           set -euo pipefail
           RG_NAME="tripradar-dev-rg"
           SUB="/subscriptions/${ARM_SUBSCRIPTION_ID}"
-          VAR_FILE=../../environments/dev/terraform.tfvars
+          VAR_FILE=../terraform.tfvars
 
           import_if_needed() {
             local addr="$1"; local rid="$2"
@@ -724,7 +810,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          VAR_FILE=../../environments/prod/terraform.tfvars
+          VAR_FILE=../terraform.tfvars
           ADDR="azurerm_resource_group.rg"
           RG_NAME="tripradar-prod-rg"
           if terraform state list | grep -q "^$ADDR$"; then
@@ -746,7 +832,7 @@ jobs:
           set -euo pipefail
           RG_NAME="tripradar-prod-rg"
           SUB="/subscriptions/${ARM_SUBSCRIPTION_ID}"
-          VAR_FILE=../../environments/prod/terraform.tfvars
+          VAR_FILE=../terraform.tfvars
 
           import_if_needed() {
             local addr="$1"; local rid="$2"
@@ -850,12 +936,51 @@ jobs:
           if [ "${{ inputs.jobs_image }}" != "" ]; then echo "TF_VAR_jobs_image=${{ inputs.jobs_image }}" >> $GITHUB_ENV; fi
         shell: bash
 
+      - name: Prepare TF VARs (edge/pe/vpn overrides)
+        run: |
+          set -euo pipefail
+          set +u
+          # Edge / Front Door
+          if [ "${{ inputs.fd_custom_domain }}" != "" ]; then echo "TF_VAR_fd_custom_domain=${{ inputs.fd_custom_domain }}" >> $GITHUB_ENV; fi
+          if [ "${{ inputs.fd_waf_enable }}" == "true" ]; then echo "TF_VAR_fd_waf_enable=true" >> $GITHUB_ENV; fi
+          # Private Endpoints / Networking
+          if [ "${{ inputs.enable_private_endpoints }}" == "true" ]; then echo "TF_VAR_enable_private_endpoints=true" >> $GITHUB_ENV; fi
+          if [ "${{ inputs.subnet_cae_cidr }}" != "" ]; then echo "TF_VAR_subnet_cae_cidr=${{ inputs.subnet_cae_cidr }}" >> $GITHUB_ENV; fi
+          if [ "${{ inputs.subnet_private_endpoints_cidr }}" != "" ]; then echo "TF_VAR_subnet_private_endpoints_cidr=${{ inputs.subnet_private_endpoints_cidr }}" >> $GITHUB_ENV; fi
+          if [ "${{ inputs.subnet_gateway_cidr }}" != "" ]; then echo "TF_VAR_subnet_gateway_cidr=${{ inputs.subnet_gateway_cidr }}" >> $GITHUB_ENV; fi
+          # VPN
+          if [ "${{ inputs.enable_vpn }}" == "true" ]; then echo "TF_VAR_enable_vpn=true" >> $GITHUB_ENV; fi
+          if [ "${{ inputs.vpn_sku }}" != "" ]; then echo "TF_VAR_vpn_sku=${{ inputs.vpn_sku }}" >> $GITHUB_ENV; fi
+          if [ "${{ inputs.vpn_type }}" != "" ]; then echo "TF_VAR_vpn_type=${{ inputs.vpn_type }}" >> $GITHUB_ENV; fi
+          if [ "${{ inputs.vpn_gateway_generation }}" != "" ]; then echo "TF_VAR_vpn_gateway_generation=${{ inputs.vpn_gateway_generation }}" >> $GITHUB_ENV; fi
+          if [ "${{ inputs.enable_vpn_connection }}" == "true" ]; then echo "TF_VAR_enable_vpn_connection=true" >> $GITHUB_ENV; fi
+          if [ "${{ inputs.local_network_gateway_address }}" != "" ]; then echo "TF_VAR_local_network_gateway_address=${{ inputs.local_network_gateway_address }}" >> $GITHUB_ENV; fi
+          if [ "${{ inputs.local_network_address_space }}" != "" ]; then
+            RAW="${{ inputs.local_network_address_space }}"
+            if [[ "$RAW" == \[*\] ]]; then
+              echo "TF_VAR_local_network_address_space=$RAW" >> $GITHUB_ENV
+            else
+              IFS=',' read -ra arr <<< "$RAW"
+              json="["
+              sep=""
+              for cidr in "${arr[@]}"; do
+                cidr_trim=$(echo "$cidr" | xargs)
+                [ -z "$cidr_trim" ] && continue
+                json+="$sep\"$cidr_trim\""
+                sep=",";
+              done
+              json+="]"
+              echo "TF_VAR_local_network_address_space=$json" >> $GITHUB_ENV
+            fi
+          fi
+        shell: bash
+
       - name: Terraform Apply (manual) with auto-unlock
         working-directory: ${{ env.TF_WORKING_DIR }}
         shell: bash
         run: |
           set -euo pipefail
-          TFVARS="../../environments/${{ inputs.environment }}/terraform.tfvars"
+          TFVARS="../terraform.tfvars"
           echo "Using tfvars: $TFVARS"
           set +e
           terraform apply -no-color -auto-approve -lock-timeout=5m -var-file="$TFVARS" |& tee apply.out
@@ -880,6 +1005,8 @@ jobs:
     if: github.event_name == 'workflow_dispatch' && inputs.lock_id != ''
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
+    env:
+      TF_WORKING_DIR: infra/terraform/environments/${{ inputs.environment }}/app
     concurrency:
       group: terraform-${{ inputs.environment }}
       cancel-in-progress: false
