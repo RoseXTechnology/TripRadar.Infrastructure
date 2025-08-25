@@ -222,6 +222,27 @@ jobs:
             fi
           }
 
+          # Remove legacy root-level addresses from state to avoid invalid destroys
+          cleanup_legacy_root_state() {
+            local legacy_addrs=(
+              "azurerm_resource_group.rg"
+              "azurerm_log_analytics_workspace.law[0]"
+              "azurerm_container_app_environment.cae[0]"
+              "azurerm_postgresql_flexible_server.pg[0]"
+              "azurerm_postgresql_flexible_server_database.tripradar[0]"
+              "random_password.pg_admin[0]"
+            )
+            for addr in "${legacy_addrs[@]}"; do
+              if terraform state list | grep -q "^${addr}$"; then
+                echo "Removing legacy root-level state address: ${addr}"
+                terraform state rm "${addr}" || true
+              fi
+            done
+          }
+
+          # Ensure we start from a clean state before importing
+          cleanup_legacy_root_state
+
           # PostgreSQL Flexible Server
           PG_NAME=$(az postgres flexible-server list -g "$RG_NAME" --query "[0].name" -o tsv 2>/dev/null || true)
           if [ -n "$PG_NAME" ]; then
