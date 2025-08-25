@@ -226,7 +226,15 @@ jobs:
           PG_NAME=$(az postgres flexible-server list -g "$RG_NAME" --query "[0].name" -o tsv 2>/dev/null || true)
           if [ -n "$PG_NAME" ]; then
             import_if_needed "module.app.azurerm_postgresql_flexible_server.pg[0]" "${SUB}/resourceGroups/${RG_NAME}/providers/Microsoft.DBforPostgreSQL/flexibleServers/${PG_NAME}"
-            # PostgreSQL Database (skip the default 'postgres' DB)
+            # Ensure we never try to manage/delete system DB 'azure_maintenance' (fix bad state if present)
+            if terraform state list | grep -q "^module.app.azurerm_postgresql_flexible_server_database.tripradar\\[0\\]$"; then
+              CURRENT_DB_ID=$(terraform state show -no-color "module.app.azurerm_postgresql_flexible_server_database.tripradar[0]" 2>/dev/null | awk -F' = ' '/^id = /{print $2; exit}')
+              if echo "$CURRENT_DB_ID" | grep -q "/databases/azure_maintenance$"; then
+                echo "Removing system DB 'azure_maintenance' from state (module.app.azurerm_postgresql_flexible_server_database.tripradar[0])"
+                terraform state rm "module.app.azurerm_postgresql_flexible_server_database.tripradar[0]" || true
+              fi
+            fi
+            # PostgreSQL Database (skip system DBs 'postgres' and 'azure_maintenance')
             DB_NAME=$(az postgres flexible-server db list -g "$RG_NAME" -s "$PG_NAME" --query "[?name!='postgres' && name!='azure_maintenance']|[0].name" -o tsv 2>/dev/null || true)
             if [ -n "$DB_NAME" ]; then
               import_if_needed "module.app.azurerm_postgresql_flexible_server_database.tripradar[0]" "${SUB}/resourceGroups/${RG_NAME}/providers/Microsoft.DBforPostgreSQL/flexibleServers/${PG_NAME}/databases/${DB_NAME}"
@@ -260,8 +268,13 @@ jobs:
             import_if_needed "module.app.azurerm_key_vault.kv[0]" "${SUB}/resourceGroups/${RG_NAME}/providers/Microsoft.KeyVault/vaults/${KV_NAME}"
           fi
 
-          # Application Insights (optional)
-          APPI_NAME=$(az monitor app-insights component list -g "$RG_NAME" --query "[0].name" -o tsv 2>/dev/null || true)
+          # Application Insights (optional) - prefer expected name "<project>-<environment>-appi"
+          EXPECTED_APPI="${RG_NAME%-rg}-appi"
+          if az monitor app-insights component show -g "$RG_NAME" -a "$EXPECTED_APPI" >/dev/null 2>&1; then
+            APPI_NAME="$EXPECTED_APPI"
+          else
+            APPI_NAME=$(az monitor app-insights component list -g "$RG_NAME" --query "[0].name" -o tsv 2>/dev/null || true)
+          fi
           if [ -n "$APPI_NAME" ]; then
             import_if_needed "module.app.azurerm_application_insights.appi[0]" "${SUB}/resourceGroups/${RG_NAME}/providers/Microsoft.Insights/components/${APPI_NAME}"
           fi
@@ -463,7 +476,15 @@ jobs:
           PG_NAME=$(az postgres flexible-server list -g "$RG_NAME" --query "[0].name" -o tsv 2>/dev/null || true)
           if [ -n "$PG_NAME" ]; then
             import_if_needed "module.app.azurerm_postgresql_flexible_server.pg[0]" "${SUB}/resourceGroups/${RG_NAME}/providers/Microsoft.DBforPostgreSQL/flexibleServers/${PG_NAME}"
-            # PostgreSQL Database (skip the default 'postgres' DB)
+            # Ensure we never try to manage/delete system DB 'azure_maintenance' (fix bad state if present)
+            if terraform state list | grep -q "^module.app.azurerm_postgresql_flexible_server_database.tripradar\\[0\\]$"; then
+              CURRENT_DB_ID=$(terraform state show -no-color "module.app.azurerm_postgresql_flexible_server_database.tripradar[0]" 2>/dev/null | awk -F' = ' '/^id = /{print $2; exit}')
+              if echo "$CURRENT_DB_ID" | grep -q "/databases/azure_maintenance$"; then
+                echo "Removing system DB 'azure_maintenance' from state (module.app.azurerm_postgresql_flexible_server_database.tripradar[0])"
+                terraform state rm "module.app.azurerm_postgresql_flexible_server_database.tripradar[0]" || true
+              fi
+            fi
+            # PostgreSQL Database (skip system DBs 'postgres' and 'azure_maintenance')
             DB_NAME=$(az postgres flexible-server db list -g "$RG_NAME" -s "$PG_NAME" --query "[?name!='postgres' && name!='azure_maintenance']|[0].name" -o tsv 2>/dev/null || true)
             if [ -n "$DB_NAME" ]; then
               import_if_needed "module.app.azurerm_postgresql_flexible_server_database.tripradar[0]" "${SUB}/resourceGroups/${RG_NAME}/providers/Microsoft.DBforPostgreSQL/flexibleServers/${PG_NAME}/databases/${DB_NAME}"
@@ -493,7 +514,13 @@ jobs:
             import_if_needed "module.app.azurerm_key_vault.kv[0]" "${SUB}/resourceGroups/${RG_NAME}/providers/Microsoft.KeyVault/vaults/${KV_NAME}"
           fi
 
-          APPI_NAME=$(az monitor app-insights component list -g "$RG_NAME" --query "[0].name" -o tsv 2>/dev/null || true)
+          # Application Insights (optional) - prefer expected name "<project>-<environment>-appi"
+          EXPECTED_APPI="${RG_NAME%-rg}-appi"
+          if az monitor app-insights component show -g "$RG_NAME" -a "$EXPECTED_APPI" >/dev/null 2>&1; then
+            APPI_NAME="$EXPECTED_APPI"
+          else
+            APPI_NAME=$(az monitor app-insights component list -g "$RG_NAME" --query "[0].name" -o tsv 2>/dev/null || true)
+          fi
           if [ -n "$APPI_NAME" ]; then
             import_if_needed "module.app.azurerm_application_insights.appi[0]" "${SUB}/resourceGroups/${RG_NAME}/providers/Microsoft.Insights/components/${APPI_NAME}"
           fi
