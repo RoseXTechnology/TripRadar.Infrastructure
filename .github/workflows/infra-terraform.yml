@@ -31,6 +31,10 @@ on:
         description: 'Optional: Full image ref for Jobs (e.g., myacr.azurecr.io/tripradar/jobs:sha)'
         required: false
         type: string
+      lock_id:
+        description: 'Optional: Terraform state Lock ID to force-unlock (use with unlock-state job)'
+        required: false
+        type: string
 
 permissions:
   id-token: write
@@ -76,6 +80,11 @@ jobs:
         with:
           terraform_wrapper: false
 
+      - name: Terraform automation env
+        run: |
+          echo "TF_IN_AUTOMATION=true" >> $GITHUB_ENV
+          echo "TF_INPUT=false" >> $GITHUB_ENV
+
       - name: Terraform Fmt
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: terraform fmt -check -recursive
@@ -99,7 +108,7 @@ jobs:
         run: |
           set -euo pipefail
           set +e
-          terraform plan -lock-timeout=5m -var-file=../../environments/dev/terraform.tfvars |& tee plan.out
+          terraform plan -no-color -lock-timeout=5m -var-file=../../environments/dev/terraform.tfvars |& tee plan.out
           status=${PIPESTATUS[0]}
           set -e
           if [ "$status" -ne 0 ]; then
@@ -108,7 +117,7 @@ jobs:
               if [ -n "$LOCK_ID" ]; then
                 echo "Stale lock detected. Force-unlocking $LOCK_ID ..."
                 terraform force-unlock -force "$LOCK_ID" || true
-                terraform plan -lock-timeout=5m -var-file=../../environments/dev/terraform.tfvars
+                terraform plan -no-color -lock-timeout=5m -var-file=../../environments/dev/terraform.tfvars
               else
                 echo "Could not extract lock ID from Terraform output."; exit 1
               fi
@@ -180,7 +189,7 @@ jobs:
         run: |
           set -euo pipefail
           set +e
-          terraform apply -auto-approve -lock-timeout=5m -var-file=../../environments/dev/terraform.tfvars |& tee apply.out
+          terraform apply -no-color -auto-approve -lock-timeout=5m -var-file=../../environments/dev/terraform.tfvars |& tee apply.out
           status=${PIPESTATUS[0]}
           set -e
           if [ "$status" -ne 0 ]; then
@@ -189,7 +198,7 @@ jobs:
               if [ -n "$LOCK_ID" ]; then
                 echo "Stale lock detected. Force-unlocking $LOCK_ID ..."
                 terraform force-unlock -force "$LOCK_ID" || true
-                terraform apply -auto-approve -lock-timeout=5m -var-file=../../environments/dev/terraform.tfvars
+                terraform apply -no-color -auto-approve -lock-timeout=5m -var-file=../../environments/dev/terraform.tfvars
               else
                 echo "Could not extract lock ID from Terraform output."; exit 1
               fi
@@ -255,7 +264,7 @@ jobs:
         run: |
           set -euo pipefail
           set +e
-          terraform apply -auto-approve -lock-timeout=5m -var-file=../../environments/prod/terraform.tfvars |& tee apply.out
+          terraform apply -no-color -auto-approve -lock-timeout=5m -var-file=../../environments/prod/terraform.tfvars |& tee apply.out
           status=${PIPESTATUS[0]}
           set -e
           if [ "$status" -ne 0 ]; then
@@ -264,7 +273,7 @@ jobs:
               if [ -n "$LOCK_ID" ]; then
                 echo "Stale lock detected. Force-unlocking $LOCK_ID ..."
                 terraform force-unlock -force "$LOCK_ID" || true
-                terraform apply -auto-approve -lock-timeout=5m -var-file=../../environments/prod/terraform.tfvars
+                terraform apply -no-color -auto-approve -lock-timeout=5m -var-file=../../environments/prod/terraform.tfvars
               else
                 echo "Could not extract lock ID from Terraform output."; exit 1
               fi
@@ -286,7 +295,7 @@ jobs:
           fi
 
   apply-manual:
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' && (inputs.lock_id == '')
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     concurrency:
@@ -383,7 +392,7 @@ jobs:
           TFVARS="../../environments/${{ inputs.environment }}/terraform.tfvars"
           echo "Using tfvars: $TFVARS"
           set +e
-          terraform apply -auto-approve -lock-timeout=5m -var-file="$TFVARS" |& tee apply.out
+          terraform apply -no-color -auto-approve -lock-timeout=5m -var-file="$TFVARS" |& tee apply.out
           status=${PIPESTATUS[0]}
           set -e
           if [ "$status" -ne 0 ]; then
@@ -392,7 +401,7 @@ jobs:
               if [ -n "$LOCK_ID" ]; then
                 echo "Stale lock detected. Force-unlocking $LOCK_ID ..."
                 terraform force-unlock -force "$LOCK_ID" || true
-                terraform apply -auto-approve -lock-timeout=5m -var-file="$TFVARS"
+                terraform apply -no-color -auto-approve -lock-timeout=5m -var-file="$TFVARS"
               else
                 echo "Could not extract lock ID from Terraform output."; exit 1
               fi
@@ -400,6 +409,57 @@ jobs:
               exit "$status"
             fi
           fi
+
+  unlock-state:
+    if: github.event_name == 'workflow_dispatch' && inputs.lock_id != ''
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    concurrency:
+      group: terraform-${{ inputs.environment }}
+      cancel-in-progress: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Export ARM env for Terraform (OIDC)
+        run: |
+          echo "ARM_USE_OIDC=true" >> $GITHUB_ENV
+          echo "ARM_CLIENT_ID=${{ secrets.AZURE_CLIENT_ID }}" >> $GITHUB_ENV
+          echo "ARM_TENANT_ID=${{ secrets.AZURE_TENANT_ID }}" >> $GITHUB_ENV
+          echo "ARM_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Terraform automation env
+        run: |
+          echo "TF_IN_AUTOMATION=true" >> $GITHUB_ENV
+          echo "TF_INPUT=false" >> $GITHUB_ENV
+
+      - name: Terraform Init (backend)
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          KEY="tripradar-${{ inputs.environment }}.tfstate"
+          terraform init \
+            -backend-config="resource_group_name=${{ secrets.TFSTATE_RG }}" \
+            -backend-config="storage_account_name=${{ secrets.TFSTATE_SA }}" \
+            -backend-config="container_name=${{ secrets.TFSTATE_CONTAINER }}" \
+            -backend-config="key=$KEY"
+
+      - name: Force unlock state
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform force-unlock -force "${{ inputs.lock_id }}"
 
       - name: Show Terraform outputs (manual)
         if: ${{ success() }}
