@@ -144,8 +144,8 @@ jobs:
       - name: Import Existing Resources
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: |
-          chmod +x ../../../../../../.github/scripts/terraform-import.sh
-          ../../../../../../.github/scripts/terraform-import.sh ${{ github.event.inputs.environment }} .
+          chmod +x ../../../../../.github/scripts/terraform-import.sh
+          ../../../../../.github/scripts/terraform-import.sh ${{ github.event.inputs.environment }} .
 
       - name: Terraform Plan
         if: github.event.inputs.action == 'plan'

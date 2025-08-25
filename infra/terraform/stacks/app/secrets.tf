@@ -18,7 +18,7 @@ resource "azurerm_key_vault_secret" "redis_connection_string" {
 }
 
 resource "azurerm_key_vault_secret" "app_insights_connection_string" {
-  count        = var.enable_key_vault && var.write_secrets_to_key_vault && var.enable_app_insights && try(azurerm_application_insights.appi[0].connection_string, null) != null ? 1 : 0
+  count        = var.enable_key_vault && var.write_secrets_to_key_vault && var.enable_app_insights ? 1 : 0
   name         = "app-insights-connection-string"
   value        = azurerm_application_insights.appi[0].connection_string
   key_vault_id = azurerm_key_vault.kv[0].id
