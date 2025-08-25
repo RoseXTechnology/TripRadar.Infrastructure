@@ -1,0 +1,105 @@
+name: Terraform
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+        - dev
+        - prod
+      action:
+        description: 'Terraform action'
+        required: true
+        default: 'plan'
+        type: choice
+        options:
+        - plan
+        - apply
+        - destroy
+
+env:
+  ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+  ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+  ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+  TF_WORKING_DIR: infra/terraform/environments/${{ github.event.inputs.environment }}/app
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.8"
+
+      - name: Azure CLI Login
+        uses: azure/login@v2
+        with:
+          creds: '{"clientId":"${{ secrets.AZURE_CLIENT_ID }}","clientSecret":"${{ secrets.AZURE_CLIENT_SECRET }}","subscriptionId":"${{ secrets.AZURE_SUBSCRIPTION_ID }}","tenantId":"${{ secrets.AZURE_TENANT_ID }}"}'
+
+      - name: Terraform Init
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform init
+
+      - name: Import Resource Group
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          RG_NAME="tripradar-${{ github.event.inputs.environment }}-rg"
+          ADDR="module.app.azurerm_resource_group.rg"
+          VAR_FILE="../terraform.tfvars"
+          
+          if terraform state list | grep -q "^$ADDR$"; then
+            echo "RG already in state — skipping import"
+          elif az group show -n "$RG_NAME" >/dev/null 2>&1; then
+            echo "Importing existing RG into state..."
+            terraform import -var-file="$VAR_FILE" "$ADDR" "/subscriptions/${ARM_SUBSCRIPTION_ID}/resourceGroups/${RG_NAME}" || true
+          else
+            echo "RG not found in Azure — skipping import"
+          fi
+
+      - name: Import Existing Resources
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          chmod +x ../../../../../../.github/scripts/terraform-import.sh
+          ../../../../../../.github/scripts/terraform-import.sh ${{ github.event.inputs.environment }} .
+
+      - name: Terraform Plan
+        if: github.event.inputs.action == 'plan'
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform plan -var-file="../terraform.tfvars"
+
+      - name: Terraform Apply
+        if: github.event.inputs.action == 'apply'
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform apply -auto-approve -var-file="../terraform.tfvars"
+
+      - name: Terraform Destroy
+        if: github.event.inputs.action == 'destroy'
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform destroy -auto-approve -var-file="../terraform.tfvars"
+
+      - name: Get API URL
+        if: github.event.inputs.action == 'apply' && github.event.inputs.environment == 'dev'
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          API_URL=$(terraform output -raw api_url 2>/dev/null || echo "")
+          if [ -n "$API_URL" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "## 🚀 Deployment Complete" >> $GITHUB_STEP_SUMMARY
+            echo "**API URL:** [$API_URL]($API_URL)" >> $GITHUB_STEP_SUMMARY
+            echo "API_URL=$API_URL" >> $GITHUB_ENV
+          fi
+
+      - name: Azure CLI Logout
+        if: always()
+        run: az logout
