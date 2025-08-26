@@ -15,6 +15,9 @@ resource "azurerm_log_analytics_workspace" "law" {
   sku                 = "PerGB2018"
   retention_in_days   = 30
   tags                = merge(var.tags, { Environment = var.environment, Project = var.project })
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 # Application Insights (optional)
@@ -26,6 +29,9 @@ resource "azurerm_application_insights" "appi" {
   application_type    = "web"
   workspace_id        = var.enable_log_analytics ? azurerm_log_analytics_workspace.law[0].id : null
   tags                = merge(var.tags, { Environment = var.environment, Project = var.project })
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 # Container Apps Environment (optional)
@@ -49,6 +55,9 @@ resource "azurerm_container_registry" "acr" {
   sku                 = "Standard"
   admin_enabled       = false
   tags                = merge(var.tags, { Environment = var.environment, Project = var.project })
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 # Key Vault (optional, RBAC-based)
@@ -64,5 +73,8 @@ resource "azurerm_key_vault" "kv" {
   enable_rbac_authorization     = true
   public_network_access_enabled = var.key_vault_public_network_access_enabled
   tags                          = merge(var.tags, { Environment = var.environment, Project = var.project })
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 

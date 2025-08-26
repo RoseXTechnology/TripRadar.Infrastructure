@@ -80,6 +80,10 @@ module "app" {
   fd_profile_sku         = var.fd_profile_sku
   fd_forwarding_protocol = var.fd_forwarding_protocol
   fd_route_patterns      = var.fd_route_patterns
+  fd_active_slot         = var.fd_active_slot
+
+  # Event Hubs (blue/green slot selection)
+  eh_active_slot         = var.eh_active_slot
 
   # VPN (optional)
   enable_vpn                    = var.enable_vpn

@@ -15,4 +15,7 @@ resource "azurerm_redis_cache" "redis" {
   redis_configuration {}
 
   tags = merge(var.tags, { Environment = var.environment, Project = var.project })
+  lifecycle {
+    prevent_destroy = true
+  }
 }
