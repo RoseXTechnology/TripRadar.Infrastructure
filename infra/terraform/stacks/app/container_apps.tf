@@ -60,7 +60,7 @@ module "ca_jobs" {
 
 # Database initialization job
 resource "azurerm_container_app_job" "db_init" {
-  count                        = var.enable_container_app_environment && var.enable_postgres ? 1 : 0
+  count                        = var.enable_container_app_environment && var.enable_postgres && var.db_image != null && var.db_image != "" ? 1 : 0
   name                         = "${var.project}-${var.environment}-db-init"
   location                     = var.location
   resource_group_name          = azurerm_resource_group.rg.name
@@ -77,7 +77,7 @@ resource "azurerm_container_app_job" "db_init" {
   template {
     container {
       name   = "db-init"
-      image  = coalesce(var.db_image, "mcr.microsoft.com/dotnet/runtime:8.0")
+      image  = var.db_image != null && var.db_image != "" ? var.db_image : "mcr.microsoft.com/dotnet/runtime:8.0"
       cpu    = 0.25
       memory = "0.5Gi"
 
@@ -131,7 +131,7 @@ resource "azurerm_container_app_job" "db_init" {
 
 # Automatically execute database initialization job after creation
 resource "null_resource" "db_init_execution" {
-  count = var.enable_container_app_environment && var.enable_postgres ? 1 : 0
+  count = var.enable_container_app_environment && var.enable_postgres && var.db_image != null && var.db_image != "" ? 1 : 0
 
   provisioner "local-exec" {
     command = "az containerapp job start --name ${azurerm_container_app_job.db_init[0].name} --resource-group ${azurerm_resource_group.rg.name}"
