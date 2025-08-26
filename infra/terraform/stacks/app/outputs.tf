@@ -132,6 +132,16 @@ output "frontdoor_endpoint_url" {
   description = "Front Door public URL"
 }
 
+output "frontdoor_active_origin_group_id" {
+  value       = try(local.fd_active_group_id, null)
+  description = "Front Door active origin group id"
+}
+
+output "frontdoor_active_slot" {
+  value       = try(var.fd_active_slot, null)
+  description = "Active Front Door slot (blue/green)"
+}
+
 # --- Event Hubs outputs ---
 output "event_hubs_namespace_name" {
   value       = try(azurerm_eventhub_namespace.eh[0].name, null)
@@ -139,7 +149,7 @@ output "event_hubs_namespace_name" {
 }
 
 output "event_hub_name" {
-  value       = try(azurerm_eventhub.hub[0].name, null)
+  value       = try(local.active_event_hub_name, null)
   description = "Event Hub name"
 }
 
@@ -150,7 +160,7 @@ output "event_hubs_send_connection_string" {
 }
 
 output "event_hubs_listen_connection_string" {
-  value       = try(azurerm_eventhub_authorization_rule.hub_listen[0].primary_connection_string, null)
+  value       = try(local.active_event_hub_listen_connection_string, null)
   description = "Event Hubs listen (consumer) connection string"
   sensitive   = true
 }
@@ -160,6 +170,10 @@ output "event_hubs_kafka_bootstrap" {
   description = "Kafka bootstrap server for Event Hubs"
 }
 
+output "active_event_hub_slot" {
+  value       = try(var.eh_active_slot, null)
+  description = "Active Event Hub slot (blue/green)"
+}
 
 # --- VPN outputs ---
 output "vnet_gateway_id" {

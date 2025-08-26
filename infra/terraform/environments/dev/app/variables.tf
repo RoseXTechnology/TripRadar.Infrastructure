@@ -181,3 +181,16 @@ variable "vpn_shared_key" {
   default   = null
   sensitive = true
 }
+
+# Blue/Green slot selection
+variable "fd_active_slot" {
+  type        = string
+  description = "Active Front Door slot ('blue' or 'green')"
+  default     = "blue"
+}
+
+variable "eh_active_slot" {
+  type        = string
+  description = "Active Event Hubs slot ('blue' or 'green')"
+  default     = "blue"
+}

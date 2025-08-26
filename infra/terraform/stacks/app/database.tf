@@ -25,6 +25,18 @@ resource "azurerm_postgresql_flexible_server" "pg" {
   # delegated_subnet_id = azurerm_subnet.subnet_data[0].id
 
   tags = merge(var.tags, { Environment = var.environment, Project = var.project })
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+# Management lock to prevent accidental deletion of the PostgreSQL server
+resource "azurerm_management_lock" "pg_cannot_delete" {
+  count      = var.enable_postgres ? 1 : 0
+  name       = "${var.project}-${var.environment}-pg-lock"
+  scope      = azurerm_postgresql_flexible_server.pg[0].id
+  lock_level = "CanNotDelete"
+  notes      = "Prevent accidental deletion of PostgreSQL server"
 }
 
 # Create the application database
@@ -34,4 +46,7 @@ resource "azurerm_postgresql_flexible_server_database" "tripradar" {
   server_id = azurerm_postgresql_flexible_server.pg[0].id
   collation = "en_US.utf8"
   charset   = "utf8"
+  lifecycle {
+    prevent_destroy = true
+  }
 }

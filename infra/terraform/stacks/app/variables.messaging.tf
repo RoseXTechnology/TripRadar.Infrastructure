@@ -35,3 +35,14 @@ variable "event_hubs_public_network_access_enabled" {
   type        = bool
   default     = true
 }
+
+# Blue/Green slot selector for Event Hubs
+variable "eh_active_slot" {
+  description = "Active Event Hubs slot ('blue' or 'green')"
+  type        = string
+  default     = "blue"
+  validation {
+    condition     = contains(["blue", "green"], var.eh_active_slot)
+    error_message = "eh_active_slot must be either 'blue' or 'green'."
+  }
+}

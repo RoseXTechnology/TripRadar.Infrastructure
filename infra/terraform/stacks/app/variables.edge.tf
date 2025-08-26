@@ -29,3 +29,14 @@ variable "fd_waf_enable" {
   type        = bool
   default     = false
 }
+
+# Blue/Green slot selector for Front Door
+variable "fd_active_slot" {
+  description = "Active Front Door slot ('blue' or 'green')"
+  type        = string
+  default     = "blue"
+  validation {
+    condition     = contains(["blue", "green"], var.fd_active_slot)
+    error_message = "fd_active_slot must be either 'blue' or 'green'."
+  }
+}

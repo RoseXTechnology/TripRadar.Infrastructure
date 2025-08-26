@@ -31,6 +31,14 @@ on:
         description: 'Target specific resources (optional)'
         required: false
         type: string
+      slot:
+        description: 'Blue/Green deployment slot'
+        required: true
+        default: 'blue'
+        type: choice
+        options:
+        - blue
+        - green
 
 env:
   # Azure Authentication (OIDC)
@@ -44,6 +52,9 @@ env:
   TF_WORKING_DIR: infra/terraform/environments/${{ inputs.environment }}/app
   TF_VAR_FILE: ../terraform.tfvars
   TF_LOG_LEVEL: INFO
+  # Blue/Green slot variables passed to Terraform
+  TF_VAR_fd_active_slot: ${{ inputs.slot }}
+  TF_VAR_eh_active_slot: ${{ inputs.slot }}
   
   # Backend Configuration (Environment Independent)
   TF_BACKEND_RESOURCE_GROUP: "tripradar-tfstate-rg"
@@ -91,7 +102,24 @@ jobs:
               exit 1
               ;;
           esac
+
+          # Validate blue/green slot input
+          case "${{ inputs.slot }}" in
+            blue|green)
+              echo "✅ Slot '${{ inputs.slot }}' is valid"
+              ;;
+            *)
+              echo "❌ Invalid slot: ${{ inputs.slot }}"
+              exit 1
+              ;;
+          esac
           
+          # Block destroy in production entirely
+          if [[ "${{ inputs.environment }}" == "prod" && "${{ inputs.action }}" == "destroy" ]]; then
+            echo "❌ Destroy operations are blocked in production"
+            exit 1
+          fi
+
           # Set outputs
           echo "environment=${{ inputs.environment }}" >> $GITHUB_OUTPUT
           echo "resource_group_name=${{ env.PROJECT_NAME }}-${{ inputs.environment }}-rg" >> $GITHUB_OUTPUT
