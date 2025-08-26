@@ -81,6 +81,12 @@ variable "db_image" {
   default = null
 }
 
+# Gate db-init job creation
+variable "enable_db_init_job" {
+  type    = bool
+  default = false
+}
+
 variable "api_min_replicas" {
   type    = number
   default = 1

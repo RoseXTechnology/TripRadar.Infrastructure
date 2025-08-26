@@ -20,6 +20,17 @@ provider "azurerm" {
 
 provider "azapi" {}
 
+# Used to construct import IDs at apply time (no manual commands)
+data "azurerm_client_config" "current" {}
+
+locals {
+  rg_name   = "${var.project}-${var.environment}-rg"
+  cae_name  = "${var.project}-${var.environment}-cae"
+  api_name  = "${var.project}-${var.environment}-api"
+  jobs_name = "${var.project}-${var.environment}-jobs"
+  cae_diag_name = "${var.project}-${var.environment}-cae-diag"
+}
+
 module "app" {
   source = "../../../stacks/app"
 
@@ -73,13 +84,16 @@ module "app" {
 
   api_custom_domain = var.api_custom_domain
 
-  # Front Door / WAF (optional)
-  fd_enable              = var.fd_enable
+  # Front Door / WAF (optional) - force disabled for dev to avoid subscription restriction
+  fd_enable              = false
   fd_custom_domain       = var.fd_custom_domain
   fd_waf_enable          = var.fd_waf_enable
   fd_profile_sku         = var.fd_profile_sku
   fd_forwarding_protocol = var.fd_forwarding_protocol
   fd_route_patterns      = var.fd_route_patterns
+
+  # Gate db-init job
+  enable_db_init_job = var.enable_db_init_job
   fd_active_slot         = var.fd_active_slot
 
   # Event Hubs (blue/green slot selection)
