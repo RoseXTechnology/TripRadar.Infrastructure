@@ -162,7 +162,7 @@ resource "azurerm_cdn_frontdoor_firewall_policy" "fd" {
 
   managed_rule {
     type    = "DefaultRuleSet"
-    version = "2.1"
+    version = "1.0"
     action  = "Block"
   }
   lifecycle {
