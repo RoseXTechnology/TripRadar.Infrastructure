@@ -1,6 +1,11 @@
 variable "name" { type = string }
 variable "target_resource_id" { type = string }
 variable "log_analytics_workspace_id" { type = string }
+variable "enable_metrics" {
+  type    = bool
+  default = false
+  # Some provider versions mark the 'metric' block as deprecated; keep it opt-in
+}
 
 # Discover categories dynamically for the target
 # (Removed to avoid plan-time unknowns when target_resource_id is not yet known)
@@ -14,14 +19,15 @@ resource "azurerm_monitor_diagnostic_setting" "this" {
   log_analytics_workspace_id = var.log_analytics_workspace_id
 
   # Enable all available log categories using category group
-  log {
+  enabled_log {
     category_group = "allLogs"
-    enabled        = true
   }
 
   # Enable all available metrics
-  metric {
-    category = "AllMetrics"
-    enabled  = true
+  dynamic "metric" {
+    for_each = var.enable_metrics ? [1] : []
+    content {
+      category = "AllMetrics"
+    }
   }
 }
