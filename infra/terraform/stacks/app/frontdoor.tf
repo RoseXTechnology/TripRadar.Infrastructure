@@ -154,7 +154,7 @@ resource "azurerm_cdn_frontdoor_route" "api" {
 # Front Door WAF policy (optional)
 resource "azurerm_cdn_frontdoor_firewall_policy" "fd" {
   count               = local.fd_waf_enabled ? 1 : 0
-  name                = "${var.project}-${var.environment}-afd-waf"
+  name                = regexreplace("${var.project}${var.environment}AfdWaf", "[^A-Za-z0-9]", "")
   resource_group_name = azurerm_resource_group.rg.name
   sku_name            = var.fd_profile_sku
   mode                = "Prevention"
@@ -173,7 +173,7 @@ resource "azurerm_cdn_frontdoor_firewall_policy" "fd" {
 # Associate WAF policy to endpoint (and custom domain if present)
 resource "azurerm_cdn_frontdoor_security_policy" "fd" {
   count                    = local.fd_waf_enabled ? 1 : 0
-  name                     = "${var.project}-${var.environment}-afd-sp"
+  name                     = regexreplace("${var.project}${var.environment}AfdSp", "[^A-Za-z0-9]", "")
   cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.fd[0].id
 
   security_policies {
