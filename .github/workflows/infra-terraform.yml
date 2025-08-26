@@ -38,7 +38,6 @@ env:
   ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
   ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
   ARM_USE_OIDC: true
-  ARM_SKIP_PROVIDER_REGISTRATION: true
   
   # Terraform Configuration
   TF_VERSION: "1.9.8"
@@ -295,6 +294,8 @@ jobs:
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: |
           echo "⚙️ Initializing Terraform with remote backend..."
+          # Ensure no conflict with provider.resource_provider_registrations
+          unset ARM_SKIP_PROVIDER_REGISTRATION || true
           terraform init \
             -backend-config="resource_group_name=${{ env.TF_BACKEND_RESOURCE_GROUP }}" \
             -backend-config="storage_account_name=${{ env.TF_BACKEND_STORAGE_ACCOUNT }}" \
