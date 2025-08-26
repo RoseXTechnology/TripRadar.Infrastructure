@@ -37,7 +37,7 @@ resource "azurerm_key_vault_secret" "eventhubs_send_connection_string" {
 resource "azurerm_key_vault_secret" "eventhubs_listen_connection_string" {
   count        = var.enable_key_vault && var.write_secrets_to_key_vault && var.enable_event_hubs ? 1 : 0
   name         = "eventhubs-listen-connection-string"
-  value        = azurerm_eventhub_authorization_rule.hub_listen[0].primary_connection_string
+  value        = local.active_event_hub_listen_connection_string
   key_vault_id = azurerm_key_vault.kv[0].id
   content_type = "connection-string"
 }
