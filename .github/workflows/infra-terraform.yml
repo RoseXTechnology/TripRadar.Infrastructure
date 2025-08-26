@@ -289,6 +289,11 @@ jobs:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      
+      - name: 🧹 Unset deprecated AzureRM flags
+        run: |
+          # Ensure deprecated env flag is not set from org/repo environment
+          echo "ARM_SKIP_PROVIDER_REGISTRATION=" >> $GITHUB_ENV
           
       - name: ⚙️ Initialize Terraform Backend
         working-directory: ${{ env.TF_WORKING_DIR }}
