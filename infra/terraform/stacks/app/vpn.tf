@@ -16,9 +16,9 @@ resource "azurerm_virtual_network_gateway" "vpngw" {
   location            = var.location
   resource_group_name = azurerm_resource_group.rg.name
 
-  type     = "Vpn"
-  vpn_type = var.vpn_type
-  sku      = var.vpn_sku
+  type       = "Vpn"
+  vpn_type   = var.vpn_type
+  sku        = var.vpn_sku
   generation = var.vpn_gateway_generation
 
   active_active = false

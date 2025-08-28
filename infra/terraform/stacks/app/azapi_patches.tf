@@ -11,10 +11,10 @@ resource "azapi_update_resource" "api_cors" {
       configuration = {
         ingress = {
           corsPolicy = {
-            allowedOrigins  = var.cors_allowed_origins
-            allowedMethods  = ["GET", "POST", "OPTIONS"]
-            allowedHeaders  = ["*"]
-            exposeHeaders   = []
+            allowedOrigins   = var.cors_allowed_origins
+            allowedMethods   = ["GET", "POST", "OPTIONS"]
+            allowedHeaders   = ["*"]
+            exposeHeaders    = []
             allowCredentials = false
             # maxAge optional
           }
@@ -35,10 +35,10 @@ resource "azapi_update_resource" "jobs_cors" {
       configuration = {
         ingress = {
           corsPolicy = {
-            allowedOrigins  = var.cors_allowed_origins
-            allowedMethods  = ["GET", "POST", "OPTIONS"]
-            allowedHeaders  = ["*"]
-            exposeHeaders   = []
+            allowedOrigins   = var.cors_allowed_origins
+            allowedMethods   = ["GET", "POST", "OPTIONS"]
+            allowedHeaders   = ["*"]
+            exposeHeaders    = []
             allowCredentials = false
           }
         }

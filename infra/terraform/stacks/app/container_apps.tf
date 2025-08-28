@@ -145,7 +145,7 @@ resource "null_resource" "db_init_execution" {
   ]
 
   triggers = {
-    job_id  = azurerm_container_app_job.db_init[0].id
+    job_id   = azurerm_container_app_job.db_init[0].id
     db_image = var.db_image
   }
 }

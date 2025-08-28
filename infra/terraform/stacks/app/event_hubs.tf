@@ -6,7 +6,7 @@ resource "azurerm_eventhub_namespace" "eh" {
   location            = var.location
   resource_group_name = azurerm_resource_group.rg.name
 
-  sku  = "Standard"
+  sku      = "Standard"
   capacity = 1
 
   public_network_access_enabled = var.event_hubs_public_network_access_enabled
@@ -19,9 +19,9 @@ resource "azurerm_eventhub_namespace" "eh" {
 
 # Blue/Green Event Hubs within a single namespace
 resource "azurerm_eventhub" "hub_blue" {
-  count         = var.enable_event_hubs ? 1 : 0
-  name          = var.event_hub_name
-  namespace_id  = azurerm_eventhub_namespace.eh[0].id
+  count        = var.enable_event_hubs ? 1 : 0
+  name         = var.event_hub_name
+  namespace_id = azurerm_eventhub_namespace.eh[0].id
 
   partition_count   = var.event_hub_partitions
   message_retention = var.event_hub_message_retention
@@ -31,9 +31,9 @@ resource "azurerm_eventhub" "hub_blue" {
 }
 
 resource "azurerm_eventhub" "hub_green" {
-  count         = var.enable_event_hubs ? 1 : 0
-  name          = "${var.event_hub_name}-green"
-  namespace_id  = azurerm_eventhub_namespace.eh[0].id
+  count        = var.enable_event_hubs ? 1 : 0
+  name         = "${var.event_hub_name}-green"
+  namespace_id = azurerm_eventhub_namespace.eh[0].id
 
   partition_count   = var.event_hub_partitions
   message_retention = var.event_hub_message_retention
@@ -91,7 +91,7 @@ resource "azurerm_eventhub_authorization_rule" "hub_listen_green" {
 
 locals {
   event_hubs_kafka_bootstrap = var.enable_event_hubs ? format("%s.servicebus.windows.net:9093", azurerm_eventhub_namespace.eh[0].name) : null
-  active_event_hub_name = var.enable_event_hubs ? (var.eh_active_slot == "blue" ? azurerm_eventhub.hub_blue[0].name : azurerm_eventhub.hub_green[0].name) : null
+  active_event_hub_name      = var.enable_event_hubs ? (var.eh_active_slot == "blue" ? azurerm_eventhub.hub_blue[0].name : azurerm_eventhub.hub_green[0].name) : null
   active_event_hub_listen_connection_string = var.enable_event_hubs ? (
     var.eh_active_slot == "blue" ? azurerm_eventhub_authorization_rule.hub_listen_blue[0].primary_connection_string : azurerm_eventhub_authorization_rule.hub_listen_green[0].primary_connection_string
   ) : null
