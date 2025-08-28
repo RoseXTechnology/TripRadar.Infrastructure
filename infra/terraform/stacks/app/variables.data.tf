@@ -118,3 +118,9 @@ variable "enable_pg_lock" {
   type        = bool
   default     = false
 }
+
+variable "enable_role_assignments" {
+  description = "Enable RBAC role assignments (requires User Access Administrator permissions)"
+  type        = bool
+  default     = false
+}
