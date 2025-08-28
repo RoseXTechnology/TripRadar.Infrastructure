@@ -1,6 +1,4 @@
 # Role assignments for Managed Identities
-# Note: These may fail if the service principal lacks User Access Administrator role
-# In that case, assign roles manually via Azure Portal or CLI
 
 # ACR pull permissions for API MI
 resource "azurerm_role_assignment" "api_acr_pull" {

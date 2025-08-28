@@ -62,6 +62,7 @@ module "app" {
   deployer_object_id                           = var.deployer_object_id
 
   enable_postgres = var.enable_postgres
+  enable_pg_lock  = var.enable_pg_lock
   # You can pass detailed Postgres settings if needed:
   # postgres_server_name                     = var.postgres_server_name
   # postgres_administrator_login             = var.postgres_administrator_login

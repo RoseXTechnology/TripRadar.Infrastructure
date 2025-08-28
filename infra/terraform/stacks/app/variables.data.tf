@@ -112,3 +112,9 @@ variable "write_secrets_to_key_vault" {
   type        = bool
   default     = true
 }
+
+variable "enable_pg_lock" {
+  description = "Enable management lock on PostgreSQL server to prevent accidental deletion"
+  type        = bool
+  default     = false
+}

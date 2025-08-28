@@ -68,6 +68,11 @@ variable "enable_postgres" {
   default = false
 }
 
+variable "enable_pg_lock" {
+  type    = bool
+  default = false
+}
+
 variable "api_image" {
   type    = string
   default = null

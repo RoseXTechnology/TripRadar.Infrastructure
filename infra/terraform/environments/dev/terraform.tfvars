@@ -23,6 +23,7 @@ write_secrets_to_key_vault = false # Disable to avoid count dependency issues
 
 # Database configuration
 enable_postgres = true
+enable_pg_lock  = false
 
 # Use public images until ACR images are built and pushed
 api_image  = "mcr.microsoft.com/azuredocs/containerapps-helloworld:latest"

@@ -31,4 +31,8 @@ resource "azurerm_monitor_diagnostic_setting" "this" {
       category = "AllMetrics"
     }
   }
+  
+  lifecycle {
+    ignore_changes = [name]
+  }
 }
