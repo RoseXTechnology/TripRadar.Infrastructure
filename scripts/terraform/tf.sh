@@ -34,10 +34,10 @@ print_error() {
 get_script_dir() {
     if [[ -n "${BASH_SOURCE[0]}" ]]; then
         # Get the directory of the script
-        echo "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        cd "$(dirname "${BASH_SOURCE[0]}")" && pwd
     else
         # Fallback for environments where BASH_SOURCE is not available
-        echo "$(pwd)"
+        pwd
     fi
 }
 
@@ -48,14 +48,15 @@ is_github_actions() {
 
 # Function to get repository root
 get_repo_root() {
-    local script_dir=$(get_script_dir)
+    local script_dir
+    script_dir=$(get_script_dir)
 
     # If running in GitHub Actions, workspace is set
     if is_github_actions; then
         echo "${GITHUB_WORKSPACE:-$script_dir}"
     else
         # Go up from infra/terraform to repository root
-        echo "$(cd "$script_dir/../../../.." 2>/dev/null && pwd || echo "$script_dir")"
+        cd "$script_dir/../../../.." 2>/dev/null && pwd || echo "$script_dir"
     fi
 }
 
@@ -143,7 +144,8 @@ main() {
     validate_action "$action"
 
     # Get paths
-    local repo_root=$(get_repo_root)
+    local repo_root
+    repo_root=$(get_repo_root)
     local env_path="$repo_root/infra/terraform/environments/$environment/app"
     local tfvars_path="$repo_root/infra/terraform/environments/$environment/terraform.tfvars"
 
