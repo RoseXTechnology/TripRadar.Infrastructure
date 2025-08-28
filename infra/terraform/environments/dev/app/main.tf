@@ -31,6 +31,12 @@ locals {
   cae_diag_name = "${var.project}-${var.environment}-cae-diag"
 }
 
+
+import {
+  to = module.app.module.diag_cae[0].azurerm_monitor_diagnostic_setting.this
+  id = "/subscriptions/${data.azurerm_client_config.current.subscription_id}/resourceGroups/${local.rg_name}/providers/Microsoft.App/managedEnvironments/${local.cae_name}|${local.cae_diag_name}"
+}
+
 module "app" {
   source = "../../../stacks/app"
 

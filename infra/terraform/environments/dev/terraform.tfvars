@@ -30,6 +30,10 @@ api_image  = "mcr.microsoft.com/azuredocs/containerapps-helloworld:latest"
 jobs_image = "mcr.microsoft.com/azuredocs/containerapps-helloworld:latest"
 db_image   = "mcr.microsoft.com/azuredocs/containerapps-helloworld:latest"
 
+# IMPORTANT: The sample images listen on port 80. Set ports accordingly to avoid revision timeouts.
+api_port  = 80
+jobs_port = 80
+
 # Autoscaling configuration
 api_min_replicas        = 1
 api_max_replicas        = 5
