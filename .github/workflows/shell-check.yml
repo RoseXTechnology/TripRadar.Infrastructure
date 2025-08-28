@@ -46,5 +46,5 @@ jobs:
           Write-Host "No .ps1 files to lint in scripts folder."
           exit 0
         }
-        Write-Host "Linting files:`n$($files -join "`n")"
+        Write-Host "Linting files:`n$($files -join \\"`n\\")"
         Invoke-ScriptAnalyzer -Path $files -Recurse -EnableExit
