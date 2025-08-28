@@ -122,10 +122,9 @@ resource "azurerm_cdn_frontdoor_origin" "api_green" {
   }
 }
 
-# Active selection locals
 locals {
-  fd_active_group_id  = var.fd_active_slot == "blue" ? azurerm_cdn_frontdoor_origin_group.api_blue[0].id : azurerm_cdn_frontdoor_origin_group.api_green[0].id
-  fd_active_origin_ids = var.fd_active_slot == "blue" ? [azurerm_cdn_frontdoor_origin.api_blue[0].id] : [azurerm_cdn_frontdoor_origin.api_green[0].id]
+  fd_active_group_id  = local.fd_enabled ? (var.fd_active_slot == "blue" ? azurerm_cdn_frontdoor_origin_group.api_blue[0].id : azurerm_cdn_frontdoor_origin_group.api_green[0].id) : null
+  fd_active_origin_ids = local.fd_enabled ? (var.fd_active_slot == "blue" ? [azurerm_cdn_frontdoor_origin.api_blue[0].id] : [azurerm_cdn_frontdoor_origin.api_green[0].id]) : []
 }
 
 resource "azurerm_cdn_frontdoor_route" "api" {
@@ -165,9 +164,9 @@ resource "azurerm_cdn_frontdoor_firewall_policy" "fd" {
     version = "1.0"
     action  = "Block"
   }
-  lifecycle {
-    prevent_destroy = true
-  }
+  
+  # Note: prevent_destroy removed to allow proper count-based lifecycle management
+  # If you need to protect this resource, consider using -target flags during apply
 }
 
 # Associate WAF policy to endpoint (and custom domain if present)
