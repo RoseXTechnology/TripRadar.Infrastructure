@@ -31,10 +31,32 @@ locals {
   cae_diag_name = "${var.project}-${var.environment}-cae-diag"
 }
 
-
+# Auto-import existing Diagnostic Setting for CAE if it already exists
 import {
   to = module.app.module.diag_cae[0].azurerm_monitor_diagnostic_setting.this
   id = "/subscriptions/${data.azurerm_client_config.current.subscription_id}/resourceGroups/${local.rg_name}/providers/Microsoft.App/managedEnvironments/${local.cae_name}|${local.cae_diag_name}"
+}
+
+# Auto-import existing Container Apps if they already exist
+import {
+  to = module.app.module.ca_api[0].azurerm_container_app.this
+  id = "/subscriptions/${data.azurerm_client_config.current.subscription_id}/resourceGroups/${local.rg_name}/providers/Microsoft.App/containerApps/${local.api_name}"
+}
+
+import {
+  to = module.app.module.ca_jobs[0].azurerm_container_app.this
+  id = "/subscriptions/${data.azurerm_client_config.current.subscription_id}/resourceGroups/${local.rg_name}/providers/Microsoft.App/containerApps/${local.jobs_name}"
+}
+
+# Auto-import existing Diagnostic Settings for API and Jobs if they already exist
+import {
+  to = module.app.module.diag_api[0].azurerm_monitor_diagnostic_setting.this
+  id = "/subscriptions/${data.azurerm_client_config.current.subscription_id}/resourceGroups/${local.rg_name}/providers/Microsoft.App/containerApps/${local.api_name}|${local.api_name}-diag"
+}
+
+import {
+  to = module.app.module.diag_jobs[0].azurerm_monitor_diagnostic_setting.this
+  id = "/subscriptions/${data.azurerm_client_config.current.subscription_id}/resourceGroups/${local.rg_name}/providers/Microsoft.App/containerApps/${local.jobs_name}|${local.jobs_name}-diag"
 }
 
 module "app" {
