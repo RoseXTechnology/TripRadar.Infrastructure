@@ -50,6 +50,13 @@ variable "jobs_ingress_external" {
   default     = false
 }
 
+# Controls creation of the database initialization Container App Job
+variable "enable_db_init_job" {
+  description = "Enable the db-init job creation (requires a valid db_image)."
+  type        = bool
+  default     = false
+}
+
 variable "api_min_replicas" {
   description = "Min replicas for API"
   type        = number
