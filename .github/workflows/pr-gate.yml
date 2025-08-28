@@ -1,0 +1,93 @@
+name: PR Quality Gate
+
+on:
+  pull_request:
+    branches: [ development, main ]
+    types: [ opened, synchronize, reopened ]
+
+jobs:
+  quality-gate:
+    name: 🛡️ PR Quality Gate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      checks: write
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    # Enforce conventional commits
+    - name: 🔍 Conventional Commits Check
+      uses: wagoid/commitlint-github-action@v5
+      with:
+        configFile: .commitlintrc.json
+        failOnWarnings: false
+
+    # Check for sensitive data
+    - name: 🔒 Secret Leak Detection
+      uses: zricethezav/gitleaks-action@v2
+      with:
+        config-path: .gitleaks.toml
+
+    # Validate Terraform
+    - name: 🏗️ Terraform Validation
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: "~1.6.0"
+
+    - name: Terraform Format Check
+      run: |
+        cd infra/terraform/environments/dev/app
+        terraform fmt -check -recursive
+
+    - name: Terraform Validate
+      run: |
+        cd infra/terraform/environments/dev/app
+        terraform validate
+
+    # PR Size Check
+    - name: 📏 PR Size Check
+      uses: codacy/git-version@2.7.1
+      with:
+        release-branch: main
+        dev-branch: development
+      id: version
+
+    - name: Comment PR Size
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const pr = context.payload.pull_request;
+          const additions = pr.additions;
+          const deletions = pr.deletions;
+
+          let size = 'small';
+          let color = 'green';
+
+          if (additions + deletions > 1000) {
+            size = 'large';
+            color = 'red';
+          } else if (additions + deletions > 100) {
+            size = 'medium';
+            color = 'yellow';
+          }
+
+          const body = `## 📊 PR Size Analysis
+          - **Size**: ${size} (${color})
+          - **Lines added**: +${additions}
+          - **Lines deleted**: -${deletions}
+          - **Total changes**: ${additions + deletions}
+
+          ${size === 'large' ? '⚠️ Large PR detected. Consider breaking into smaller PRs.' : '✅ PR size looks good!'}
+          `;
+
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: body
+          });

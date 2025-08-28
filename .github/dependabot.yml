@@ -1,0 +1,51 @@
+version: 2
+updates:
+# GitHub Actions
+- package-ecosystem: "github-actions"
+  directory: "/"
+  schedule:
+    interval: "weekly"
+  commit-message:
+    prefix: "ci"
+    prefix-development: "ci"
+    include: "scope"
+
+# Terraform
+- package-ecosystem: "terraform"
+  directory: "infra/terraform/"
+  schedule:
+    interval: "weekly"
+  commit-message:
+    prefix: "infra"
+    prefix-development: "infra"
+    include: "scope"
+
+# Docker
+- package-ecosystem: "docker"
+  directory: "/"
+  schedule:
+    interval: "weekly"
+  commit-message:
+    prefix: "docker"
+    prefix-development: "docker"
+    include: "scope"
+
+# npm (if you have frontend/package.json)
+- package-ecosystem: "npm"
+  directory: "/"
+  schedule:
+    interval: "weekly"
+  commit-message:
+    prefix: "deps"
+    prefix-development: "deps"
+    include: "scope"
+  groups:
+    dev-dependencies:
+      dependency-type: "development"
+      update-types:
+      - "minor"
+      - "patch"
+    production-dependencies:
+      dependency-type: "production"
+      update-types:
+      - "patch"
