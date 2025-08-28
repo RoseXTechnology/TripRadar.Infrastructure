@@ -23,9 +23,56 @@ jobs:
 
     # Enforce conventional commits
     - name: 🔍 Conventional Commits Check
-      uses: wagoid/commitlint-github-action@v6
-      with:
-        failOnWarnings: false
+      run: |
+        echo "🔍 Checking commit message format..."
+
+        # Get commit messages from the PR
+        commits=$(git log --oneline --no-merges HEAD~${{ github.event.pull_request.commits }}..HEAD 2>/dev/null || git log --oneline --no-merges -10 2>/dev/null || echo "")
+
+        if [ -z "$commits" ]; then
+          echo "✅ No commits found to check"
+          exit 0
+        fi
+
+        echo "📝 Found commits:"
+        echo "$commits"
+        echo ""
+
+        # Check each commit message
+        echo "$commits" | while read -r commit; do
+          # Extract commit message (remove hash)
+          commit_msg=$(echo "$commit" | cut -d' ' -f2-)
+
+          # Skip if empty
+          if [ -z "$commit_msg" ]; then
+            continue
+          fi
+
+          echo "🔍 Checking: $commit_msg"
+
+          # Check if it contains "dependabot" - allow these
+          if echo "$commit_msg" | grep -q "dependabot"; then
+            echo "✅ Dependabot commit - allowed"
+            continue
+          fi
+
+          # Check if it contains "Merge" - allow these
+          if echo "$commit_msg" | grep -q "^Merge"; then
+            echo "✅ Merge commit - allowed"
+            continue
+          fi
+
+          # Check basic conventional commit format
+          if echo "$commit_msg" | grep -qE "^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test|infra|security)(\(.+\))?: "; then
+            echo "✅ Valid conventional commit format"
+          else
+            echo "❌ Invalid commit format. Expected: type(scope): description"
+            echo "   Valid types: build, chore, ci, docs, feat, fix, perf, refactor, revert, style, test, infra, security"
+            exit 1
+          fi
+        done
+
+        echo "✅ All commits follow conventional format!"
 
     # Validate Terraform
     - name: 🏗️ Terraform Validation

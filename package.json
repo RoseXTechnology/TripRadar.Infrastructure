@@ -1,0 +1,12 @@
+{
+  "name": "tripradar-infrastructure",
+  "version": "1.0.0",
+  "description": "Infrastructure as Code for TripRadar project",
+  "devDependencies": {
+    "@commitlint/cli": "^19.0.0",
+    "@commitlint/config-conventional": "^19.0.0"
+  },
+  "scripts": {
+    "commitlint": "commitlint --edit"
+  }
+}

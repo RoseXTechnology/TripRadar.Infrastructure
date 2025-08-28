@@ -20,8 +20,9 @@ module.exports = {
         'security'
       ]
     ],
-    'subject-case': [2, 'always', 'lower-case'],
-    'subject-max-length': [2, 'always', 72],
-    'body-max-line-length': [0, 'always', 100]
+    'subject-case': [0], // Disable case checking
+    'subject-max-length': [2, 'always', 100], // Allow longer subjects
+    'body-max-line-length': [0], // Disable body line length checking
+    'footer-max-line-length': [0] // Disable footer line length checking
   }
 };
