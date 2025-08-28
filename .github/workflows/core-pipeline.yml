@@ -1,0 +1,93 @@
+name: Core DevOps Pipeline
+
+on:
+  push:
+    branches: [ development, main ]
+  pull_request:
+    branches: [ development, main ]
+
+jobs:
+  # Quality & Security Gates
+  quality-check:
+    name: 🛡️ Quality & Security
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      pull-requests: write
+      checks: write
+      statuses: write
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v5
+      with:
+        fetch-depth: 0
+
+    # Commit message validation (only on PRs)
+    - name: 🔍 Conventional Commits Check
+      if: github.event_name == 'pull_request'
+      run: |
+        echo "🔍 Checking commit message format..."
+
+        commits=$(git log --oneline --no-merges HEAD~${{ github.event.pull_request.commits }}..HEAD 2>/dev/null || git log --oneline --no-merges -10 2>/dev/null || echo "")
+
+        if [ -z "$commits" ]; then
+          echo "✅ No commits found to check"
+          exit 0
+        fi
+
+        echo "$commits" | while read -r commit; do
+          commit_msg=$(echo "$commit" | cut -d' ' -f2-)
+
+          if echo "$commit_msg" | grep -q "dependabot\|Merge"; then
+            echo "✅ $commit_msg - allowed"
+            continue
+          fi
+
+          if echo "$commit_msg" | grep -qE "^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test|infra|security)(\(.+\))?: "; then
+            echo "✅ $commit_msg - valid format"
+          else
+            echo "❌ Invalid format: $commit_msg"
+            exit 1
+          fi
+        done
+
+    # Terraform validation
+    - name: 🏗️ Terraform Validation
+      run: |
+        cd infra/terraform/environments/dev/app
+        terraform validate
+
+    # Security scan
+    - name: 🔒 Security Scan
+      uses: aquasecurity/trivy-action@0.29.0
+      with:
+        scan-type: 'config'
+        scan-ref: 'infra/terraform/'
+        format: 'sarif'
+        output: 'security-results.sarif'
+
+    - name: Upload Security Results
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: 'security-results.sarif'
+
+  # Build & Test (if you have application code)
+  build:
+    name: 🏗️ Build & Test
+    runs-on: ubuntu-latest
+    needs: quality-check
+    if: contains(github.event.head_commit.modified, 'src/') || contains(github.event.head_commit.modified, 'Dockerfile')
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v5
+
+    # Add your build steps here when you have application code
+    - name: Build Application
+      run: echo "🏗️ Build steps will go here when you have application code"
+
+    - name: Run Tests
+      run: echo "🧪 Test steps will go here when you have tests"
