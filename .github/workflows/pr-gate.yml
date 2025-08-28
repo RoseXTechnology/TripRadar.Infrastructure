@@ -25,7 +25,7 @@ jobs:
     - name: 🔍 Conventional Commits Check
       uses: wagoid/commitlint-github-action@v6
       with:
-        configFile: .commitlintrc.js
+        configFile: .commitlintrc.json
         failOnWarnings: false
 
     # Validate Terraform
