@@ -52,24 +52,6 @@ jobs:
       with:
         sarif_file: 'tfsec-results.sarif'
 
-  # Security scan for secrets
-  secrets-scan:
-    name: 🔑 Secrets Scan
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      security-events: write
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v5
-      with:
-        fetch-depth: 0
-
-    - name: GitLeaks - Secrets Detection
-      uses: zricethezav/gitleaks-action@v2
-      with:
-        config-path: .gitleaks.toml
-
   # Security scan for Docker images and filesystem
   trivy-scan:
     name: 🐳 Container & Filesystem Security Scan

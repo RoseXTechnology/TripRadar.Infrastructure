@@ -1,50 +1,63 @@
-﻿name: Shellcheck
+﻿name: Script Linting
 
 on:
   push:
+    paths:
+      - 'scripts/**'
+      - '.github/workflows/shell-check.yml'
   pull_request:
+    paths:
+      - 'scripts/**'
   workflow_dispatch:
-
 
 jobs:
   shellcheck:
-    name: ShellCheck (.sh)
+    name: 🔧 ShellCheck (.sh files)
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout
+      uses: actions/checkout@v5
+
     - name: Install ShellCheck
       run: |
         sudo apt-get update
         sudo apt-get install -y shellcheck
+
     - name: Lint shell scripts
       shell: bash
       run: |
         set -euo pipefail
         SH_FILES="$(git ls-files '*.sh' | grep -E '(scripts/|/tf\.sh$)' | tr '\n' ' ')"
         if [ -z "$SH_FILES" ]; then
-          echo "No .sh files to lint in scripts folder."
+          echo "✅ No .sh files to lint in scripts folder."
           exit 0
         fi
-        echo "Linting files: $SH_FILES"
+        echo "🔍 Linting files: $SH_FILES"
         shellcheck -S style -x $SH_FILES
+        echo "✅ ShellCheck completed successfully!"
 
   pssa:
-    name: PSScriptAnalyzer (.ps1)
+    name: 🔧 PSScriptAnalyzer (.ps1 files)
     runs-on: windows-latest
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout
+      uses: actions/checkout@v5
+
     - name: Install PSScriptAnalyzer
       shell: pwsh
       run: |
         Set-PSRepository PSGallery -InstallationPolicy Trusted
         Install-Module -Name PSScriptAnalyzer -Scope CurrentUser -Force
+
     - name: Lint PowerShell scripts
       shell: pwsh
       run: |
         $files = (git ls-files *.ps1 | Where-Object { $_ -match 'scripts/' -or $_ -match 'tf\.ps1$' })
         if (-not $files) {
-          Write-Host "No .ps1 files to lint in scripts folder."
+          Write-Host "✅ No .ps1 files to lint in scripts folder."
           exit 0
         }
-        Write-Host "Linting files:`n$($files -join \\"`n\\")"
+        Write-Host "🔍 Linting files:"
+        $files | ForEach-Object { Write-Host "  - $_" }
         Invoke-ScriptAnalyzer -Path $files -Recurse -EnableExit
+        Write-Host "✅ PSScriptAnalyzer completed successfully!"

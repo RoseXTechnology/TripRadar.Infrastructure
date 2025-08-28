@@ -50,7 +50,6 @@ env:
   # Terraform Configuration
   TF_VERSION: "1.9.8"
   TF_WORKING_DIR: infra/terraform/environments/${{ inputs.environment }}/app
-  TF_VAR_FILE: ../../../../scripts/terraform/${{ inputs.environment }}.auto.tfvars
   TF_LOG_LEVEL: INFO
   # Blue/Green slot variables passed to Terraform
   TF_VAR_fd_active_slot: ${{ inputs.slot }}
@@ -361,7 +360,7 @@ jobs:
               APP_DB_NAME=$(az postgres flexible-server db list -g "$RG_NAME" -s "$PG_NAME" --query "[?name!='postgres' && name!='azure_maintenance' && name!='azure_sys']|[0].name" -o tsv 2>/dev/null || true)
               if [ -n "$APP_DB_NAME" ]; then
                 echo "✅ Importing application database: $APP_DB_NAME"
-                terraform import -var-file="${{ env.TF_VAR_FILE }}" \
+                terraform import \
                   "module.app.azurerm_postgresql_flexible_server_database.tripradar[0]" \
                                        "/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/${RG_NAME}/providers/Microsoft.DBforPostgreSQL/flexibleServers/${PG_NAME}/databases/${APP_DB_NAME}" || true
               fi
@@ -378,7 +377,7 @@ jobs:
 
         RG_NAME="${{ needs.validate-environment.outputs.resource_group_name }}"
                    SUB="/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}"
-        VAR_FILE="${{ env.TF_VAR_FILE }}"
+        # Using auto.tfvars files - no need to specify var-file
 
         # Reusable import function with error handling
         import_resource() {
@@ -507,7 +506,7 @@ jobs:
       run: |
         echo "📋 Generating Terraform execution plan..."
 
-        PLAN_ARGS="-var-file=${{ env.TF_VAR_FILE }} -no-color -detailed-exitcode"
+        PLAN_ARGS="-no-color -detailed-exitcode"
 
         # Add target resources if specified
         if [[ -n "${{ inputs.target_resources }}" ]]; then
@@ -576,7 +575,7 @@ jobs:
           exit 1
         fi
 
-        DESTROY_ARGS="-var-file=${{ env.TF_VAR_FILE }} -no-color"
+        DESTROY_ARGS="-no-color"
 
         # Add target resources if specified
         if [[ -n "${{ inputs.target_resources }}" ]]; then

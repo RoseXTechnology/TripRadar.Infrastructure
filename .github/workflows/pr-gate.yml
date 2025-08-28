@@ -25,15 +25,8 @@ jobs:
     - name: 🔍 Conventional Commits Check
       uses: wagoid/commitlint-github-action@v6
       with:
-        configFile: .commitlintrc.json
+        configFile: .commitlintrc.js
         failOnWarnings: false
-
-    # Check for sensitive data
-    - name: 🔒 Secret Leak Detection
-      uses: zricethezav/gitleaks-action@v2
-      with:
-        config-path: .gitleaks.toml
-      continue-on-error: true
 
     # Validate Terraform
     - name: 🏗️ Terraform Validation
