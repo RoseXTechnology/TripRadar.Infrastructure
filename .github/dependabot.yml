@@ -22,7 +22,7 @@ updates:
 
 # Docker
 - package-ecosystem: "docker"
-  directory: "/"
+  directory: "templates/server/docker-templates/"
   schedule:
     interval: "weekly"
   commit-message:

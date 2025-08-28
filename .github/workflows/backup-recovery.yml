@@ -21,17 +21,29 @@ jobs:
     name: 🔄 Backup & Recovery Test
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment || 'dev' }}
+    permissions:
+      contents: read
+      id-token: write  # Required for OIDC authentication
 
     steps:
     - name: Checkout
       uses: actions/checkout@v5
 
-    - name: Azure Login
+    - name: 🔐 Azure Login (OIDC)
       uses: azure/login@v2
       with:
         client-id: ${{ secrets.AZURE_CLIENT_ID }}
         tenant-id: ${{ secrets.AZURE_TENANT_ID }}
         subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      # Fallback to client secret if OIDC fails
+      continue-on-error: true
+      id: azure-login-oidc
+
+    - name: 🔐 Azure Login (Client Secret) - Fallback
+      if: steps.azure-login-oidc.outcome == 'failure'
+      uses: azure/login@v2
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS_JSON }}
 
     - name: Test PostgreSQL Backup
       run: |
