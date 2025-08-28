@@ -31,8 +31,9 @@ resource "azurerm_postgresql_flexible_server" "pg" {
 }
 
 # Management lock to prevent accidental deletion of the PostgreSQL server
+# Note: This may fail if service principal lacks lock permissions - disable if needed
 resource "azurerm_management_lock" "pg_cannot_delete" {
-  count      = var.enable_postgres ? 1 : 0
+  count      = var.enable_postgres && var.enable_pg_lock ? 1 : 0
   name       = "${var.project}-${var.environment}-pg-lock"
   scope      = azurerm_postgresql_flexible_server.pg[0].id
   lock_level = "CanNotDelete"

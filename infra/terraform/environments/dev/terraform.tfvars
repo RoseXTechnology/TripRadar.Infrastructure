@@ -24,9 +24,10 @@ write_secrets_to_key_vault = false # Disable to avoid count dependency issues
 # Database configuration
 enable_postgres = true
 
-api_image  = "tripradardevacr.azurecr.io/tripradar/api:4a098b6f6ef40c909ad152634657cbcb715f0245"
-jobs_image = "tripradardevacr.azurecr.io/tripradar/jobs:4a098b6f6ef40c909ad152634657cbcb715f0245"
-db_image   = "tripradardevacr.azurecr.io/tripradar/db:4a098b6f6ef40c909ad152634657cbcb715f0245"
+# Use public images until ACR images are built and pushed
+api_image  = "mcr.microsoft.com/azuredocs/containerapps-helloworld:latest"
+jobs_image = "mcr.microsoft.com/azuredocs/containerapps-helloworld:latest"
+db_image   = "mcr.microsoft.com/azuredocs/containerapps-helloworld:latest"
 
 # Autoscaling configuration
 api_min_replicas        = 1
@@ -38,8 +39,8 @@ jobs_max_replicas       = 2
 # Custom domain for API (with WAF protection)
 api_custom_domain = "api.dev.tripradar.io"
 
-# Front Door + WAF (recommended for production)
-fd_enable = true
+# Front Door + WAF (disabled for dev to avoid subscription limits)
+fd_enable = false
 fd_waf_enable = true
 fd_custom_domain = "api.dev.tripradar.io"
 fd_profile_sku = "Premium_AzureFrontDoor"  # Required for WAF
