@@ -6,14 +6,14 @@ output "budget_id" {
   description = "Budget resource ID"
 }
 
-output "cost_export_id" {
-  value       = try(module.cost_management.cost_export_id, null)
-  description = "Cost export resource ID"
+output "cost_export_note" {
+  value       = try(module.cost_management.cost_export_note, null)
+  description = "Note about cost export setup"
 }
 
-output "reserved_instance_id" {
-  value       = try(module.cost_management.reserved_instance_id, null)
-  description = "Reserved instance ID"
+output "reserved_instance_note" {
+  value       = try(module.cost_management.reserved_instance_note, null)
+  description = "Note about reserved instance management"
 }
 
 output "monthly_budget_amount" {

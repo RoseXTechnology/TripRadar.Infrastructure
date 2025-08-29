@@ -70,7 +70,6 @@ resource "azurerm_key_vault" "kv" {
   sku_name                      = "standard"
   purge_protection_enabled      = true
   soft_delete_retention_days    = 7
-  enable_rbac_authorization     = true
   public_network_access_enabled = var.key_vault_public_network_access_enabled
   tags                          = merge(var.tags, { Environment = var.environment, Project = var.project })
   lifecycle {

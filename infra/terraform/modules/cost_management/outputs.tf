@@ -10,24 +10,14 @@ output "budget_name" {
   description = "Budget resource name"
 }
 
-output "cost_export_id" {
-  value       = try(azurerm_cost_management_export_resource_group.export[0].id, null)
-  description = "Cost export resource ID"
+output "cost_export_note" {
+  value       = "Cost exports must be configured via Azure Portal → Cost Management → Exports"
+  description = "Note about cost export setup"
 }
 
-output "cost_export_name" {
-  value       = try(azurerm_cost_management_export_resource_group.export[0].name, null)
-  description = "Cost export resource name"
-}
-
-output "reserved_instance_id" {
-  value       = try(azurerm_reserved_virtual_machine_instance.vm_reserved[0].id, null)
-  description = "Reserved instance ID"
-}
-
-output "reserved_instance_name" {
-  value       = try(azurerm_reserved_virtual_machine_instance.vm_reserved[0].name, null)
-  description = "Reserved instance name"
+output "reserved_instance_note" {
+  value       = "Reserved instances are managed via Azure Portal → Reservations"
+  description = "Note about reserved instance management"
 }
 
 output "action_group_id" {

@@ -111,84 +111,91 @@ resource "azurerm_consumption_budget_resource_group" "budget" {
       values = [var.resource_group_name]
     }
   }
-
-  tags = merge(var.tags, {
-    Environment = var.environment
-    Project     = var.project
-    Purpose     = "CostManagement"
-  })
 }
 
 # Cost analysis export (requires storage account)
-resource "azurerm_cost_management_export_resource_group" "export" {
-  count = var.enable_cost_exports && var.storage_account_id != null ? 1 : 0
+# Note: Cost management export is not supported in current Azure provider version
+# To set up cost exports:
+# 1. Go to Azure Portal → Cost Management → Exports
+# 2. Create a new export with your storage account
+# 3. Configure recurrence and data options
 
-  name                    = "${var.project}-${var.environment}-cost-export"
-  resource_group_id       = "/subscriptions/${var.subscription_id}/resourceGroups/${var.resource_group_name}"
-  recurrence_type         = "Monthly"
-  recurrence_period_start = formatdate("YYYY-MM-01'T'00:00:00Z", timestamp())
-  recurrence_period_end   = formatdate("YYYY-MM-01'T'00:00:00Z", timeadd(timestamp(), "8760h"))
-
-  export_data_storage_location {
-    container_id     = var.storage_account_id
-    root_folder_path = "cost-analysis/${var.environment}"
-  }
-
-  export_data_options {
-    type       = "ActualCost"
-    time_frame = "MonthToDate"
-  }
-
-  query {
-    type       = "ActualCost"
-    time_frame = "MonthToDate"
-
-    dataset {
-      granularity = "Daily"
-
-      aggregation {
-        name        = "totalCost"
-        function    = "Sum"
-      }
-
-      grouping {
-        type = "Dimension"
-        name = "ServiceName"
-      }
-
-      grouping {
-        type = "Dimension"
-        name = "ResourceGroup"
-      }
-    }
-  }
-
-  tags = merge(var.tags, {
-    Environment = var.environment
-    Project     = var.project
-    Purpose     = "CostAnalysis"
-  })
-}
+# resource "azurerm_cost_management_export" "export" {
+#   count = var.enable_cost_exports && var.storage_account_id != null ? 1 : 0
+#
+#   name                    = "${var.project}-${var.environment}-cost-export"
+#   scope                   = "/subscriptions/${var.subscription_id}/resourceGroups/${var.resource_group_name}"
+#   recurrence_type         = "Monthly"
+#   recurrence_period_start = formatdate("YYYY-MM-01'T'00:00:00Z", timestamp())
+#   recurrence_period_end   = formatdate("YYYY-MM-01'T'00:00:00Z", timeadd(timestamp(), "8760h"))
+#
+#   export_data_storage_location {
+#     container_id     = var.storage_account_id
+#     root_folder_path = "cost-analysis/${var.environment}"
+#   }
+#
+#   export_data_options {
+#     type       = "ActualCost"
+#     time_frame = "MonthToDate"
+#   }
+#
+#   query {
+#     type       = "ActualCost"
+#     time_frame = "MonthToDate"
+#
+#     dataset {
+#       granularity = "Daily"
+#
+#       aggregation {
+#         name        = "totalCost"
+#         function    = "Sum"
+#       }
+#
+#       grouping {
+#         type = "Dimension"
+#         name = "ServiceName"
+#       }
+#
+#       grouping {
+#         type = "Dimension"
+#         name = "ResourceGroup"
+#       }
+#     }
+#   }
+#
+#   tags = merge(var.tags, {
+#     Environment = var.environment
+#     Project     = var.project
+#     Purpose     = "CostAnalysis"
+#   })
+# }
 
 # Reserved Virtual Machine Instances (for VMs in the resource group)
-resource "azurerm_reserved_virtual_machine_instance" "vm_reserved" {
-  count = var.enable_reserved_instances ? 1 : 0
+# Note: Reserved instances are managed via Azure portal or CLI, not Terraform
+# This resource type is not currently supported in the Azure provider
+# To create reserved instances:
+# 1. Go to Azure Portal → Reservations
+# 2. Purchase reserved instances for your VM sizes
+# 3. Apply them to specific resource groups or subscriptions
 
-  name                               = "${var.project}-${var.environment}-vm-reserved"
-  resource_group_name               = var.resource_group_name
-  location                          = "northeurope" # Should match resource group location
-  vm_size                           = var.reserved_instance_config.vm_size
-  term                              = var.reserved_instance_config.term
-  instance_count                    = var.reserved_instance_config.count
-  sku_name                          = "${var.reserved_instance_config.vm_size}_${var.reserved_instance_config.term}"
-  reserved_resource_type            = "VirtualMachines"
-
-  tags = merge(var.tags, {
-    Environment = var.environment
-    Project     = var.project
-    Purpose     = "CostOptimization"
-  })
-}
+# resource "azurerm_reserved_virtual_machine_instance" "vm_reserved" {
+#   count = var.enable_reserved_instances ? 1 : 0
+#
+#   name                               = "${var.project}-${var.environment}-vm-reserved"
+#   resource_group_name               = var.resource_group_name
+#   location                          = "northeurope"
+#   vm_size                           = var.reserved_instance_config.vm_size
+#   term                              = var.reserved_instance_config.term
+#   instance_count                    = var.reserved_instance_config.count
+#   sku_name                          = "${var.reserved_instance_config.vm_size}_${var.reserved_instance_config.term}"
+#   reserved_resource_type            = "VirtualMachines"
+#
+#   tags = merge(var.tags, {
+#     Environment = var.environment
+#     Project     = var.project
+#     Purpose     = "CostOptimization"
+#   })
+# }
 
 # Action Group for budget alerts (optional - can be created separately)
 resource "azurerm_monitor_action_group" "budget_alerts" {
