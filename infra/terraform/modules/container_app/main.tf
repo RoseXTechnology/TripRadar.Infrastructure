@@ -103,6 +103,115 @@ variable "memory" {
   default = "1Gi"
 }
 
+variable "create_timeout" {
+  type        = string
+  default     = "45m"
+  description = "Timeout for creating the container app"
+}
+
+variable "update_timeout" {
+  type        = string
+  default     = "45m"
+  description = "Timeout for updating the container app"
+}
+
+variable "delete_timeout" {
+  type        = string
+  default     = "15m"
+  description = "Timeout for deleting the container app"
+}
+
+variable "enable_retry_on_failure" {
+  type        = bool
+  default     = true
+  description = "Whether to enable retry logic on deployment failures"
+}
+
+variable "max_retry_attempts" {
+  type        = number
+  default     = 2
+  description = "Maximum number of retry attempts for failed deployments"
+}
+
+variable "retry_delay_seconds" {
+  type        = number
+  default     = 60
+  description = "Delay in seconds between retry attempts"
+}
+
+# Probe configuration variables
+variable "startup_probe_initial_delay" {
+  type        = number
+  default     = 30
+  description = "Initial delay in seconds for startup probe"
+}
+
+variable "startup_probe_period_seconds" {
+  type        = number
+  default     = 10
+  description = "Period in seconds between startup probe checks"
+}
+
+variable "startup_probe_timeout_seconds" {
+  type        = number
+  default     = 5
+  description = "Timeout in seconds for startup probe"
+}
+
+variable "startup_probe_failure_threshold" {
+  type        = number
+  default     = 12
+  description = "Number of consecutive failures allowed for startup probe"
+}
+
+variable "liveness_probe_initial_delay" {
+  type        = number
+  default     = 60
+  description = "Initial delay in seconds for liveness probe"
+}
+
+variable "liveness_probe_period_seconds" {
+  type        = number
+  default     = 30
+  description = "Period in seconds between liveness probe checks"
+}
+
+variable "liveness_probe_timeout_seconds" {
+  type        = number
+  default     = 5
+  description = "Timeout in seconds for liveness probe"
+}
+
+variable "liveness_probe_failure_threshold" {
+  type        = number
+  default     = 3
+  description = "Number of consecutive failures allowed for liveness probe"
+}
+
+variable "readiness_probe_initial_delay" {
+  type        = number
+  default     = 30
+  description = "Initial delay in seconds for readiness probe"
+}
+
+variable "readiness_probe_period_seconds" {
+  type        = number
+  default     = 10
+  description = "Period in seconds between readiness probe checks"
+}
+
+variable "readiness_probe_timeout_seconds" {
+  type        = number
+  default     = 5
+  description = "Timeout in seconds for readiness probe"
+}
+
+variable "readiness_probe_failure_threshold" {
+  type        = number
+  default     = 3
+  description = "Number of consecutive failures allowed for readiness probe"
+}
+
 resource "azurerm_container_app" "this" {
   name                         = var.name
   resource_group_name          = var.resource_group_name
@@ -110,9 +219,9 @@ resource "azurerm_container_app" "this" {
   revision_mode                = "Multiple"
 
   timeouts {
-    create = "30m"
-    update = "30m"
-    delete = "10m"
+    create = var.create_timeout
+    update = var.update_timeout
+    delete = var.delete_timeout
   }
 
   identity {
@@ -221,33 +330,81 @@ resource "azurerm_container_app" "this" {
       startup_probe {
         transport = "TCP"
         port      = var.port
-        initial_delay           = 30
-        period_seconds          = 10
-        timeout_seconds         = 5
-        failure_threshold       = 12  # 2 minutes total startup time
       }
 
       liveness_probe {
         transport = "TCP"
         port      = var.port
-        initial_delay           = 60
-        period_seconds          = 30
-        timeout_seconds         = 5
-        failure_threshold       = 3
       }
 
       readiness_probe {
         transport = "TCP"
         port      = var.port
-        initial_delay           = 30
-        period_seconds          = 10
-        timeout_seconds         = 5
-        failure_threshold       = 3
       }
     }
   }
 
   tags = var.tags
+}
+
+# Retry logic for handling transient deployment failures
+resource "null_resource" "retry_deployment" {
+  count = var.enable_retry_on_failure ? 1 : 0
+
+  triggers = {
+    container_app_id = azurerm_container_app.this.id
+    image           = var.image
+    timestamp       = timestamp()
+  }
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      #!/bin/bash
+      set -e
+
+      MAX_ATTEMPTS=${var.max_retry_attempts}
+      RETRY_DELAY=${var.retry_delay_seconds}
+      CONTAINER_NAME="${var.name}"
+      RESOURCE_GROUP="${var.resource_group_name}"
+      ATTEMPT=1
+
+      echo "Starting deployment retry logic for $CONTAINER_NAME..."
+
+      while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
+        echo "Attempt $ATTEMPT of $MAX_ATTEMPTS for container app $CONTAINER_NAME"
+
+        # Check if container app is in a healthy state
+        STATUS=$(az containerapp show --name "$CONTAINER_NAME" --resource-group "$RESOURCE_GROUP" --query "properties.provisioningState" -o tsv 2>/dev/null || echo "Failed")
+
+        if [ "$STATUS" = "Succeeded" ]; then
+          echo "Container app $CONTAINER_NAME is successfully provisioned"
+          exit 0
+        elif [ "$STATUS" = "Failed" ]; then
+          echo "Container app $CONTAINER_NAME provisioning failed on attempt $ATTEMPT"
+
+          if [ $ATTEMPT -eq $MAX_ATTEMPTS ]; then
+            echo "Max retry attempts reached. Manual intervention may be required."
+            exit 1
+          fi
+
+          echo "Waiting $RETRY_DELAY seconds before retry..."
+          sleep $RETRY_DELAY
+          ATTEMPT=$((ATTEMPT + 1))
+
+          # Trigger a revision update to retry deployment
+          echo "Triggering revision update for $CONTAINER_NAME..."
+          az containerapp revision set-mode --name "$CONTAINER_NAME" --resource-group "$RESOURCE_GROUP" --mode Multiple --yes 2>/dev/null || true
+        else
+          echo "Container app $CONTAINER_NAME is still provisioning (status: $STATUS)"
+          sleep 30
+        fi
+      done
+    EOT
+
+    interpreter = ["bash", "-c"]
+  }
+
+  depends_on = [azurerm_container_app.this]
 }
 
 output "id" {
