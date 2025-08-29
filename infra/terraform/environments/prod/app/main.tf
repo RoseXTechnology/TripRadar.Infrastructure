@@ -82,3 +82,32 @@ module "app" {
   local_network_address_space   = var.local_network_address_space
   vpn_shared_key                = var.vpn_shared_key
 }
+
+# Cost Management for Production
+module "cost_management" {
+  source = "../../../modules/cost_management"
+
+  resource_group_name    = module.app.resource_group_name
+  subscription_id        = data.azurerm_client_config.current.subscription_id
+  environment           = var.environment
+  project               = var.project
+
+  # Production cost management settings
+  enable_budget_alerts      = true
+  monthly_budget_amount     = var.monthly_budget_amount
+  budget_alert_thresholds   = var.budget_alert_thresholds
+
+  enable_cost_exports       = var.enable_cost_exports
+  storage_account_id        = var.cost_export_storage_account_id
+
+  enable_reserved_instances = var.enable_reserved_instances
+  reserved_instance_config  = var.reserved_instance_config
+
+  tags = merge(var.tags, {
+    Environment = var.environment
+    Project     = var.project
+    Purpose     = "CostManagement"
+  })
+
+  depends_on = [module.app]
+}

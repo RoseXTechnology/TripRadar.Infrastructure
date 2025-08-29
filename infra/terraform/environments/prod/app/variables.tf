@@ -181,3 +181,48 @@ variable "vpn_shared_key" {
   default   = null
   sensitive = true
 }
+
+# Cost Management Variables
+variable "monthly_budget_amount" {
+  description = "Monthly budget amount for cost alerts (USD)"
+  type        = number
+  default     = 1000  # Higher budget for production
+}
+
+variable "budget_alert_thresholds" {
+  description = "Budget alert thresholds as percentages"
+  type        = list(number)
+  default     = [50, 75, 90, 95, 100]
+}
+
+variable "enable_cost_exports" {
+  description = "Enable cost analysis exports"
+  type        = bool
+  default     = true
+}
+
+variable "cost_export_storage_account_id" {
+  description = "Storage account ID for cost exports"
+  type        = string
+  default     = null
+}
+
+variable "enable_reserved_instances" {
+  description = "Enable reserved instances for cost optimization"
+  type        = bool
+  default     = false
+}
+
+variable "reserved_instance_config" {
+  description = "Configuration for reserved instances"
+  type = object({
+    vm_size = string
+    term    = string
+    count   = number
+  })
+  default = {
+    vm_size = "Standard_B2s"
+    term    = "1Year"
+    count   = 1
+  }
+}

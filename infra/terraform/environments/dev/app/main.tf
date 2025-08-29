@@ -138,3 +138,31 @@ module "app" {
   local_network_address_space   = var.local_network_address_space
   vpn_shared_key                = var.vpn_shared_key
 }
+
+# Cost Management for Development (Lightweight)
+module "cost_management" {
+  source = "../../../modules/cost_management"
+
+  resource_group_name    = module.app.resource_group_name
+  subscription_id        = data.azurerm_client_config.current.subscription_id
+  environment           = var.environment
+  project               = var.project
+
+  # Development cost management (more conservative)
+  enable_budget_alerts      = true
+  monthly_budget_amount     = 100  # Lower budget for dev
+  budget_alert_thresholds   = [80, 90, 100]  # Alert later in dev
+
+  enable_cost_exports       = false  # Disable exports for dev
+  storage_account_id        = null
+
+  enable_reserved_instances = false  # No RIs for dev
+
+  tags = merge(var.tags, {
+    Environment = var.environment
+    Project     = var.project
+    Purpose     = "CostManagement"
+  })
+
+  depends_on = [module.app]
+}
