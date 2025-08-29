@@ -107,7 +107,13 @@ resource "azurerm_container_app" "this" {
   name                         = var.name
   resource_group_name          = var.resource_group_name
   container_app_environment_id = var.environment_id
-  revision_mode                = "Single"
+  revision_mode                = "Multiple"
+
+  timeouts {
+    create = "30m"
+    update = "30m"
+    delete = "10m"
+  }
 
   identity {
     type         = "UserAssigned"
@@ -212,14 +218,31 @@ resource "azurerm_container_app" "this" {
         }
       }
 
+      startup_probe {
+        transport = "TCP"
+        port      = var.port
+        initial_delay           = 30
+        period_seconds          = 10
+        timeout_seconds         = 5
+        failure_threshold       = 12  # 2 minutes total startup time
+      }
+
       liveness_probe {
         transport = "TCP"
         port      = var.port
+        initial_delay           = 60
+        period_seconds          = 30
+        timeout_seconds         = 5
+        failure_threshold       = 3
       }
 
       readiness_probe {
         transport = "TCP"
         port      = var.port
+        initial_delay           = 30
+        period_seconds          = 10
+        timeout_seconds         = 5
+        failure_threshold       = 3
       }
     }
   }

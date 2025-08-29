@@ -52,8 +52,8 @@ module "ca_jobs" {
   ingress_external    = var.jobs_ingress_external
   min_replicas        = var.jobs_min_replicas
   max_replicas        = var.jobs_max_replicas
-  cpu                 = 0.25
-  memory              = "0.5Gi"
+  cpu                 = 0.5   # Increased from 0.25 to prevent slow startup
+  memory              = "1Gi" # Increased from 0.5Gi to prevent slow startup
   appdb_secret_id     = local.kv_postgres_secret_id
   appdb_conn_fallback = var.enable_postgres && local.kv_postgres_secret_id == null ? local.postgres_connection_string : null
   redis_secret_id     = local.kv_redis_secret_id
